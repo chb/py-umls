@@ -40,3 +40,9 @@ code so you will get an exception if the databases haven't been set up.
     code_rxnorm = '328406'
     meaning_rxnorm = look_rxnorm.lookup_code_meaning(code_rxnorm, preferred=False)
     print('RxNorm code "{0}":     {1}'.format(code_rxnorm, meaning_rxnorm))
+
+You would typically use this module as a submodule in your own project. Best
+add this as a _git submodule_ but that really is up to you. But if you do use
+this module as a Python module, you can't use the name `py-umls` because it
+contains a dash, so you must checkout this code to a correctly named directory.
+I usually use `UMLS`.

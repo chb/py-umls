@@ -12,7 +12,10 @@ import sys
 import os.path
 import logging
 
-from sqlite import SQLite
+try:
+	from .sqlite import SQLite			# if py-umls is used as a module
+except:
+	from sqlite import SQLite			# for py-umls standalone
 
 
 class UMLS (object):
@@ -40,19 +43,22 @@ class UMLS (object):
 		if 'umls' in check:
 			umls_db = os.path.join('databases', 'umls.db')
 			if not os.path.exists(umls_db):
-				raise Exception("The UMLS database at {} does not exist. Run the import script `databases/umls.sh`.".format(umls_db))
+				raise Exception("The UMLS database at {} does not exist. Run the import script `databases/umls.sh`."
+					.format(os.path.abspath(umls_db)))
 		
 		# SNOMED
 		if 'snomed' in check:
 			snomed_db = os.path.join('databases', 'snomed.db')
 			if not os.path.exists(snomed_db):
-				raise Exception("The SNOMED database at {} does not exist. Run the import script `databases/snomed.py`.".format(snomed_db))
+				raise Exception("The SNOMED database at {} does not exist. Run the import script `databases/snomed.py`."
+					.format(os.path.abspath(snomed_db)))
 		
 		# RxNorm
 		if 'rxnorm' in check:
 			rxnorm_db = os.path.join('databases', 'rxnorm.db')
 			if not os.path.exists(rxnorm_db):
-				raise Exception("The RxNorm database at {} does not exist. Run the import script `databases/rxnorm.sh`.".format(rxnorm_db))
+				raise Exception("The RxNorm database at {} does not exist. Run the import script `databases/rxnorm.sh`."
+					.format(os.path.abspath(rxnorm_db)))
 
 
 class UMLSLookup (object):
@@ -63,7 +69,8 @@ class UMLSLookup (object):
 	preferred_sources = ['"SNOMEDCT"', '"MTH"']	
 	
 	def __init__(self):
-		self.sqlite = SQLite.get('databases/umls.db')
+		absolute = os.path.dirname(os.path.realpath(__file__))
+		self.sqlite = SQLite.get(os.path.join(absolute, 'databases/umls.db'))
 	
 	def lookup_code(self, cui, preferred=True):
 		""" Return a list with triples that contain:
@@ -141,7 +148,8 @@ class SNOMEDLookup (object):
 	
 	
 	def __init__(self):
-		self.sqlite = SQLite.get('databases/snomed.db')
+		absolute = os.path.dirname(os.path.realpath(__file__))
+		self.sqlite = SQLite.get(os.path.join(absolute, 'databases/snomed.db'))
 	
 	def lookup_code_meaning(self, snomed_id, preferred=True, no_html=True):
 		""" Returns HTML for all matches of the given SNOMED id.
@@ -172,7 +180,8 @@ class RxNormLookup (object):
 	
 	
 	def __init__(self):
-		self.sqlite = SQLite.get('databases/rxnorm.db')
+		absolute = os.path.dirname(os.path.realpath(__file__))
+		self.sqlite = SQLite.get(os.path.join(absolute, 'databases/rxnorm.db'))
 	
 	def lookup_code_meaning(self, rx_id, preferred=True, no_html=True):
 		""" Return HTML for the meaning of the given code.
@@ -220,7 +229,7 @@ class RxNormLookup (object):
 			if no_html:
 				return "; ".join(names)
 			return "<br/>\n".join(names)
-		return ''
+		return None
 
 
 # running this as a script does the database setup/check
