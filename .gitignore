@@ -1,0 +1,9 @@
+# ignore database files but not the import scripts
+databases
+!databases/umls.sh
+!databases/rxnorm.sh
+
+# system files
+.DS_Store
+__pycache__
+
