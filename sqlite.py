@@ -111,6 +111,9 @@ class SQLite (object):
 
 	def commit(self):
 		self.handle.commit()
+	
+	def rollback(self):
+		self.handle.rollback()
 
 
 	def connect(self):
@@ -120,7 +123,6 @@ class SQLite (object):
 		self.handle = sqlite3.connect(self.database)
 		self.cursor = self.handle.cursor()
 
-
 	def close(self):
 		if self.cursor is None:
 			return
@@ -129,7 +131,3 @@ class SQLite (object):
 		self.cursor = None
 		self.handle = None
 
-
-# singleton init whack-a-hack
-#SQLite = _SQLite()
-#del _SQLite

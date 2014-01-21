@@ -40,8 +40,25 @@ if [ ! -e rxnorm.db ]; then
 	# sqlite3 rxnorm.db "CREATE TABLE NDC AS SELECT RXCUI, ATV AS NDC FROM RXNSAT WHERE ATN = 'NDC';"	# we do it in 2 steps to create the primary index column
 	sqlite3 rxnorm.db "CREATE TABLE NDC (RXCUI INT, NDC VARCHAR);"
 	sqlite3 rxnorm.db "INSERT INTO NDC SELECT RXCUI, ATV FROM RXNSAT WHERE ATN = 'NDC';"
-	sqlite3 rxnorm.db "CREATE INDEX X_RXCUI ON NDC (RXCUI);"
-	sqlite3 rxnorm.db "CREATE INDEX X_NDC ON NDC (NDC);"
+	
+	# create a drug class table
+	sqlite3 rxnorm.db "CREATE TABLE VA_DRUG_CLASS (RXCUI int, RXCUI_ORIGINAL int, VA varchar);"
+	
+	# create indices
+	echo "-> Indexing NDC table"
+	sqlite3 rxnorm.db "CREATE INDEX X_NDC_RXCUI ON NDC (RXCUI);"
+	sqlite3 rxnorm.db "CREATE INDEX X_NDC_NDC ON NDC (NDC);"
+	
+	echo "-> Indexing RXNSAT table"
+	sqlite3 rxnorm.db "CREATE INDEX RXNSAT_RXCUI ON RXNSAT (RXCUI);"
+	sqlite3 rxnorm.db "CREATE INDEX RXNSAT_ATN ON RXNSAT (ATN);"
+	
+	echo "-> Indexing RXNREL table"
+	sqlite3 rxnorm.db "CREATE INDEX X_RXNREL_RXCUI1 ON RXNREL (RXCUI1);"
+	sqlite3 rxnorm.db "CREATE INDEX X_RXNREL_RELA ON RXNREL (RELA);"
+	
+	echo "-> Indexing RXNCONSO table"
+	sqlite3 rxnorm.db "CREATE INDEX X_RXNCONSO_RXCUI ON RXNCONSO (RXCUI);"
 	
 	# some SQLite gems
 	## export NDC to CSV

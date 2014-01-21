@@ -230,6 +230,149 @@ class RxNormLookup (object):
 				return "; ".join(names)
 			return "<br/>\n".join(names)
 		return None
+	
+	
+	# -------------------------------------------------------------------------- Relations
+	def lookup_tty(self, rxcui):
+		""" Returns a set of TTYs for the given RXCUI. """
+		if rxcui is None:
+			return None
+		
+		sql = 'SELECT TTY FROM RXNCONSO WHERE RXCUI = ?'
+		ttys = set()
+		for res in self.sqlite.execute(sql, (rxcui,)):
+			ttys.add(res[0])
+		
+		return ttys
+	
+	def lookup_related(self, rxcui, relation=None):
+		""" Returns a set of tuples containing the RXCUI and the actual relation
+		for the desired relation, or all if the relation is not specified.
+		"""
+		if rxcui is None:
+			return None
+		
+		found = set()
+		if relation is not None:
+			sql = "SELECT RXCUI2, RELA FROM RXNREL WHERE RXCUI1 = ? AND RELA = ?"
+			for res in self.sqlite.execute(sql, (rxcui, relation)):
+				found.add(res)
+		else:
+			sql = "SELECT RXCUI2, RELA FROM RXNREL WHERE RXCUI1 = ?"
+			for res in self.sqlite.execute(sql, (rxcui,)):
+				found.add(res)
+		
+		return found
+
+
+	# -------------------------------------------------------------------------- Drug Class
+	def find_va_drug_class(self, rxcui, deep=False):
+		""" Executes "_lookup_va_drug_class" then "_find_va_drug_class" on the
+		given rxcui, then "_find_va_drug_class" on all immediate related
+		concepts in order to find a drug class.
+		If "deep" is true, recurses a second time on all relations of the
+		immediate relations.
+		"""
+		dclass = self._lookup_va_drug_class(rxcui)
+		if dclass is not None:
+			return dclass
+		
+		dclass = self._find_va_drug_class(rxcui)
+		if dclass is not None:
+			return dclass
+		
+		# no direct class, check relations
+		priority = [
+			'has_tradename',
+			'part_of',
+			'consists_of',
+			'has_dose_form',
+			'has_ingredient',
+			'isa'
+		]
+		mapping = {
+			'has_tradename': ['BD', 'CD', 'DP', 'SBD', 'SY'],
+			'part_of': ['IN', 'MIN', 'FN', 'PT'],
+			'consists_of': ['SBDC', 'SCDC', 'TMSY'],
+			'has_dose_form': ['CD', 'DF', 'FN', 'PT'],
+			'has_ingredient': ['BN', 'FN', 'MH', 'N1', 'PEN', 'PM', 'PT', 'SU', 'SY'],
+			'isa': ['SCDG', 'TMSY']
+		}
+		
+		ttys = self.lookup_tty(rxcui)
+		logging.debug('-->  Checking relations for {}, has TTYs: {}'.format(rxcui, ', '.join(ttys)))
+		
+		for relation in priority:
+			mapped = set(mapping[relation])
+			if ttys & mapped:
+				
+				# lookup desired relations for this TTY
+				relas = self.lookup_related(rxcui, relation)
+				if relas is not None:
+					for rel_rxcui, rel_rela in relas:
+						
+						# lookup class for relation and store, if found
+						dclass = self._find_va_drug_class(rel_rxcui)
+						if dclass is not None:
+							self._store_va_drug_class(rxcui, rel_rxcui, dclass)
+							logging.debug('==>  Found "{}" where "{} {} {}" for {} '.format(dclass, rxcui, relation, rel_rxcui, ttys & mapped))
+							return dclass
+		
+		# deep recursion
+		if deep:
+			sec_relas = self.lookup_related(rxcui)
+			if sec_relas is not None:
+				for rel_rxcui, rel_rela in sec_relas:
+					if rel_rela in ['constitutes', 'dose_form_of']:
+						continue
+					
+					logging.debug('--->  Second degree relation for {} as "{}"'.format(rel_rxcui, rel_rela))
+					dclass = self.find_va_drug_class(rel_rxcui, False)
+					if dclass:
+						return dclass
+		
+		return None
+	
+	def _lookup_va_drug_class(self, rxcui):
+		""" Returns the VA class name (the first one found) for a given RXCUI.
+		"""
+		if rxcui is None:
+			return None
+		
+		# check dedicated dable
+		sql = 'SELECT VA FROM VA_DRUG_CLASS WHERE RXCUI = ?'
+		res = self.sqlite.executeOne(sql, (rxcui,))
+		return res[0] if res else None
+	
+	def _find_va_drug_class(self, rxcui):
+		""" Tries to find the VA drug class in RXNSAT for the given RXCUI.
+		"""
+		if rxcui is None:
+			return None
+		
+		# look in RXNSAT table
+		sql = 'SELECT ATV FROM RXNSAT WHERE RXCUI = ? AND ATN = "VA_CLASS_NAME"'
+		res = self.sqlite.executeOne(sql, (rxcui,))
+		return res[0] if res else None
+	
+	def _store_va_drug_class(self, rxcui, original_rxcui, va_class):
+		""" Caches the given va_class as drug class for rxcui. """
+		
+		if rxcui is None or va_class is None:
+			logging.error("You must provide the RXCUI and the class in order to store it")
+			return
+		
+		sql = '''INSERT OR REPLACE INTO VA_DRUG_CLASS
+				(RXCUI, RXCUI_ORIGINAL, VA)
+				VALUES (?, ?, ?)'''
+		insert_id = self.sqlite.executeInsert(sql, (rxcui, original_rxcui, va_class))
+		
+		if insert_id > 0:
+			self.sqlite.commit()
+			return True
+		
+		self.sqlite.rollback()
+		return False
 
 
 # running this as a script does the database setup/check
