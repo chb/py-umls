@@ -279,7 +279,8 @@ class RxNormLookup (object):
 		
 		dclass = self._find_va_drug_class(rxcui)
 		if dclass is not None:
-			self._store_va_drug_class(rxcui, rxcui, dclass)
+			if not self._store_va_drug_class(rxcui, rxcui, dclass):
+				logging.error('Failed to store drug class {} to {}'.format(dclass, rxcui))
 			return dclass
 		
 		# no direct class, check relations
@@ -315,7 +316,8 @@ class RxNormLookup (object):
 						# lookup class for relation and store, if found
 						dclass = self._find_va_drug_class(rel_rxcui)
 						if dclass is not None:
-							self._store_va_drug_class(rxcui, rel_rxcui, dclass)
+							if not self._store_va_drug_class(rxcui, rel_rxcui, dclass):
+								logging.error('Failed to store drug class {} to {}'.format(dclass, rxcui))
 							logging.debug('==>  Found "{}" where "{} {} {}" for {} '.format(dclass, rxcui, relation, rel_rxcui, ttys & mapped))
 							return dclass
 		
