@@ -266,7 +266,7 @@ class RxNormLookup (object):
 
 
 	# -------------------------------------------------------------------------- Drug Class
-	def find_va_drug_class(self, rxcui, deep=False):
+	def find_va_drug_class(self, rxcui, for_rxcui=None, deep=False):
 		""" Executes "_lookup_va_drug_class" then "_find_va_drug_class" on the
 		given rxcui, then "_find_va_drug_class" on all immediate related
 		concepts in order to find a drug class.
@@ -277,9 +277,12 @@ class RxNormLookup (object):
 		if dclass is not None:
 			return dclass
 		
+		if for_rxcui is None:
+			for_rxcui = rxcui
+		
 		dclass = self._find_va_drug_class(rxcui)
 		if dclass is not None:
-			if not self._store_va_drug_class(rxcui, rxcui, dclass):
+			if not self._store_va_drug_class(for_rxcui, rxcui, dclass):
 				logging.error('Failed to store drug class {} to {}'.format(dclass, rxcui))
 			return dclass
 		
@@ -316,7 +319,7 @@ class RxNormLookup (object):
 						# lookup class for relation and store, if found
 						dclass = self._find_va_drug_class(rel_rxcui)
 						if dclass is not None:
-							if not self._store_va_drug_class(rxcui, rel_rxcui, dclass):
+							if not self._store_va_drug_class(for_rxcui, rel_rxcui, dclass):
 								logging.error('Failed to store drug class {} to {}'.format(dclass, rxcui))
 							logging.debug('==>  Found "{}" where "{} {} {}" for {} '.format(dclass, rxcui, relation, rel_rxcui, ttys & mapped))
 							return dclass
@@ -330,7 +333,7 @@ class RxNormLookup (object):
 						continue
 					
 					logging.debug('--->  Second degree relation for {} as "{}"'.format(rel_rxcui, rel_rela))
-					dclass = self.find_va_drug_class(rel_rxcui, False)
+					dclass = self.find_va_drug_class(rel_rxcui, for_rxcui, False)
 					if dclass:
 						return dclass
 		
@@ -359,7 +362,12 @@ class RxNormLookup (object):
 		return res[0] if res else None
 	
 	def _store_va_drug_class(self, rxcui, original_rxcui, va_class):
-		""" Caches the given va_class as drug class for rxcui. """
+		""" Caches the given va_class as drug class for rxcui.
+		
+		- rxcui: the RXCUI to assign this class for
+		- original_rxcui: the RXCUI this class is originally assigned to
+		- va_class: the class name
+		"""
 		
 		if rxcui is None or va_class is None:
 			logging.error("You must provide the RXCUI and the class in order to store it")
