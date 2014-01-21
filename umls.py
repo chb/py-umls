@@ -279,6 +279,7 @@ class RxNormLookup (object):
 		
 		dclass = self._find_va_drug_class(rxcui)
 		if dclass is not None:
+			self._store_va_drug_class(rxcui, rxcui, dclass)
 			return dclass
 		
 		# no direct class, check relations
