@@ -60,11 +60,11 @@ if [ ! -e rxnorm.db ]; then
 	echo "-> Indexing RXNCONSO table"
 	sqlite3 rxnorm.db "CREATE INDEX X_RXNCONSO_RXCUI ON RXNCONSO (RXCUI);"
 	
-	# some SQLite gems
-	## export NDC to CSV
-	# SELECT RXCUI, NDC FROM NDC INTO OUTFILE 'ndc.csv' FIELDS TERMINATED BY ',' LINES TERMINATED BY "\n";
-	## export RxNorm-only names with their type (TTY) to CSV
-	# SELECT RXCUI, TTY, STR FROM RXNCONSO WHERE SAB = 'RXNORM' INTO OUTFILE 'names.csv' FIELDS TERMINATED BY ',' ENCLOSED BY '"' LINES TERMINATED BY "\n";
+	# How to export from SQLite: export NDC to CSV
+	# .mode csv
+	# .header on
+	# .out va-class.csv
+	# SELECT RXCUI, NDC FROM NDC;
 fi
 
 # dump to N-Triples
