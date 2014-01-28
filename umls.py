@@ -305,6 +305,9 @@ class RxNormLookup (object):
 		}
 		
 		ttys = self.lookup_tty(rxcui)
+		if ttys is None or 0 == len(ttys):
+			return None
+		
 		logging.debug('-->  Checking relations for {}, has TTYs: {}'.format(rxcui, ', '.join(ttys)))
 		
 		for relation in priority:
