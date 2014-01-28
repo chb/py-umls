@@ -11,14 +11,56 @@ import os
 import csv
 import logging
 
-from sqlite import SQLite
+try:
+	from .sqlite import SQLite			# if py-umls is used as a module
+except:
+	from sqlite import SQLite			# for py-umls standalone
 
 
 class SNOMED (object):
+	""" A class for importing UMLS terminologies into an SQLite database.
+	"""
+	
 	sqlite_handle = None
 	
 	@classmethod
-	def import_from_files_if_needed(cls, rx_map):
+	def check_database(cls):
+		""" Check if our database is in place and if not, prompts to create it.
+		Will raise on errors!
+		
+		SNOMED: (snomed.db)
+		Read SNOMED CT from tab-separated files and create an SQLite database.
+		"""
+		
+		snomed_db = os.path.join('databases', 'snomed.db')
+		if not os.path.exists(snomed_db):
+			raise Exception("The SNOMED database at {} does not exist. Run the script `snomed.py`."
+				.format(os.path.abspath(snomed_db)))
+	
+	
+	@classmethod
+	def find_needed_files(cls, snomed_dir):
+		
+		# table to file mapping
+		prefixes = {
+			'descriptions': 'sct2_Description_Full-en_INT_',
+			'relationships': 'sct2_Relationship_Full_INT_'
+		}
+		found = {}
+		snomed_dir = sys.argv[1]
+		
+		# try to find the files
+		for table, prefix in prefixes.items():
+			found_file = _find_files(snomed_dir, prefix)
+			if found_file is None:
+				raise Exception('Unable to locate file starting with "{}" in SNOMED directory at {}'.format(prefix, snomed_dir))
+			found[table] = found_file
+		
+		return found
+	
+	
+	@classmethod
+	def import_from_files(cls, rx_map):
 		for table, filepath in rx_map.items():
 			num_query = 'SELECT COUNT(*) FROM {}'.format(table)
 			num_existing = cls.sqlite_handle.executeOne(num_query, ())[0]
@@ -61,6 +103,7 @@ class SNOMED (object):
 				cls.sqlite_handle.isolation_level = None
 			
 			except csv.Error as e:
+				cls.sqlite_handle.rollback()
 				sys.exit('CSV error on line {}: {}'.format(reader.line_num, e))
 
 		logging.debug('..>  {} concepts parsed'.format(i-1))
@@ -144,48 +187,77 @@ class SNOMED (object):
 			''')
 
 
-# running this script with a path argument starts the data import
+class SNOMEDLookup (object):
+	""" SNOMED lookup """
+	
+	sqlite = None
+	
+	
+	def __init__(self):
+		absolute = os.path.dirname(os.path.realpath(__file__))
+		self.sqlite = SQLite.get(os.path.join(absolute, 'databases/snomed.db'))
+	
+	def lookup_code_meaning(self, snomed_id, preferred=True, no_html=True):
+		""" Returns HTML for all matches of the given SNOMED id.
+		The "preferred" flag here currently has no function.
+		"""
+		if snomed_id is None or len(snomed_id) < 1:
+			return ''
+		
+		sql = 'SELECT term, isa, active FROM descriptions WHERE concept_id = ?'
+		names = []
+		
+		# loop over results
+		for res in self.sqlite.execute(sql, (snomed_id,)):
+			if not no_html and ('synonym' == res[1] or 0 == res[2]):
+				names.append("<span style=\"color:#888;\">{}</span>".format(res[0]))
+			else:
+				names.append(res[0])
+		
+		if no_html:
+			return ", ".join(names) if len(names) > 0 else ''
+		return "<br/>\n".join(names) if len(names) > 0 else ''
+
+
+# find file function
+def _find_files(directory, prefix):
+	for root, dirs, files in os.walk(directory):
+		for name in files:
+			if name.startswith(prefix):
+				return os.path.join(directory, name)
+		
+		for name in dirs:
+			found = _find_files(os.path.join(directory, name), prefix)
+			if found:
+				return found
+	return None
+
+
+# running this as a script does the database setup/check
 if '__main__' == __name__:
 	logging.basicConfig(level=logging.DEBUG)
 	
-	if len(sys.argv) < 2:
-		print("""Provide the path to the extracted SNOMED directory as first argument.
+	# if the database check fails, run import commands
+	try:
+		SNOMED.check_database()
+	except Exception as e:
+		if len(sys.argv) < 2:
+			print("""Provide the path to the extracted SNOMED directory as first argument.
 			\nDownload SNOMED from http://www.nlm.nih.gov/research/umls/licensedcontent/snomedctfiles.html""")
+			sys.exit(0)
+		
+		# import from files
+		try:
+			SNOMED.sqlite_handle = None
+			SNOMED.setup_tables()
+			found = SNOMED.find_needed_files(sys.argv[1])
+			SNOMED.import_from_files(found)
+		except Exception as e:
+			raise Exception("SNOMED import failed: {}".format(e))
 		sys.exit(0)
 	
-	# find file function
-	def _find_files(directory, prefix):
-		for root, dirs, files in os.walk(directory):
-			for name in files:
-				if name.startswith(prefix):
-					return os.path.join(directory, name)
-			
-			for name in dirs:
-				found = _find_files(os.path.join(directory, name), prefix)
-				if found:
-					return found
-		return None
-	
-	# table to file mapping
-	prefixes = {
-		'descriptions': 'sct2_Description_Full-en_INT_',
-		'relationships': 'sct2_Relationship_Full_INT_'
-	}
-	found = {}
-	snomed_dir = sys.argv[1]
-	
-	# try to find the files
-	for table, prefix in prefixes.items():
-		found_file = _find_files(snomed_dir, prefix)
-		if found_file is None:
-			raise Exception('Unable to locate file starting with "{}" in SNOMED directory at {}'.format(prefix, snomed_dir))
-		found[table] = found_file
-	
-	# import from files
-	try:
-		SNOMED.sqlite_handle = None
-		SNOMED.setup_tables()
-		SNOMED.import_from_files_if_needed(found)
-	except Exception as e:
-		raise Exception("SNOMED import failed: {}".format(e))
-
+	# examples
+	look = SNOMEDLookup()
+	code = '215350009'
+	meaning = look.lookup_code_meaning(code)
+	print('SNOMED code "{0}":  {1}'.format(code, meaning))
