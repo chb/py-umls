@@ -166,6 +166,12 @@ class RxNormLookup (object):
 			return dclass
 		
 		# no direct class, check first grade relations
+		ttys = self.lookup_tty(rxcui)
+		if ttys is None or 0 == len(ttys):
+			return None
+		
+		logging.debug('-->  Checking relations for {}, has TTYs: {}'.format(rxcui, ', '.join(ttys)))
+		
 		priority = [
 			'has_tradename',
 			'part_of',
@@ -182,12 +188,6 @@ class RxNormLookup (object):
 			'has_ingredient': ['BN', 'FN', 'MH', 'N1', 'PEN', 'PM', 'PT', 'SU', 'SY'],
 			'isa': ['SCDG', 'TMSY']
 		}
-		
-		ttys = self.lookup_tty(rxcui)
-		if ttys is None or 0 == len(ttys):
-			return None
-		
-		logging.debug('-->  Checking relations for {}, has TTYs: {}'.format(rxcui, ', '.join(ttys)))
 		
 		for relation in priority:
 			mapped = set(mapping[relation])
@@ -239,7 +239,6 @@ class RxNormLookup (object):
 		
 		names = []
 		code = va_name[1:va_name.index(']')]
-		logging.debug("{} -> {}".format(va_name, code))
 		sql = "SELECT FRIENDLY FROM FRIENDLY_CLASS_NAMES WHERE VACODE = ?"
 		for res in self.sqlite.execute(sql, (code,)):
 			names.append(res[0])
@@ -300,7 +299,6 @@ class RxNormLookup (object):
 		- original_rxcui: the RXCUI this class is originally assigned to
 		- va_class: the class name
 		"""
-		
 		if rxcui is None or va_class is None:
 			logging.error("You must provide the RXCUI and the class in order to store it")
 			return
@@ -324,9 +322,11 @@ if '__main__' == __name__:
 	
 	# examples
 	look = RxNormLookup()
-	code_rxnorm = '328406'
-	code_meaning = look.lookup_code_meaning(code_rxnorm, preferred=False)
-	code_class = look.find_va_drug_class(code_rxnorm)
-	print('RxNorm code "{0}":     {1}'.format(code_rxnorm, code_meaning))
-	print('Drug class  "{0}":     {1}'.format(code_rxnorm, code_class))
+	code = '328406'
+	meaning = look.lookup_code_meaning(code, preferred=False)
+	dclass = look.find_va_drug_class(code)
+	fclasses = look.find_friendly_drug_classes(code)
+	print('RxNorm code      "{0}":  {1}'.format(code, meaning))
+	print('Drug class       "{0}":  {1}'.format(code, dclass))
+	print('Friendly classes "{0}":  {1}'.format(code, fclasses))
 
