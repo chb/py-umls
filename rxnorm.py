@@ -165,7 +165,7 @@ class RxNormLookup (object):
 				logging.error('Failed to store drug class {} to {}'.format(dclass, rxcui))
 			return dclass
 		
-		# no direct class, check relations
+		# no direct class, check first grade relations
 		priority = [
 			'has_tradename',
 			'part_of',
@@ -198,16 +198,15 @@ class RxNormLookup (object):
 				if relas is not None:
 					for rel_rxcui, rel_rela in relas:
 						
-						# lookup class for relation and store, if found
+						# lookup class for relation
 						dclass = self._find_va_drug_class(rel_rxcui)
 						if dclass is not None:
-							if not self._store_va_drug_class(for_rxcui, rel_rxcui, dclass):
-								logging.error('Failed to store drug class {} to {}'.format(dclass, rxcui))
-							logging.debug('==>  Found "{}" where "{} {} {}" for {} '.format(dclass, rxcui, relation, rel_rxcui, ttys & mapped))
-							return dclass
+							break
+			if dclass is not None:
+				break
 		
-		# deep recursion
-		if deep:
+		# deeper recursion if we still don't have a class
+		if dclass is None and deep:
 			sec_relas = self.lookup_related(rxcui)
 			if sec_relas is not None:
 				for rel_rxcui, rel_rela in sec_relas:
@@ -216,8 +215,13 @@ class RxNormLookup (object):
 					
 					logging.debug('--->  Second degree relation for {} as "{}"'.format(rel_rxcui, rel_rela))
 					dclass = self.find_va_drug_class(rel_rxcui, for_rxcui, False)
-					if dclass:
+					if dclass is not None:
 						break
+		
+		# store new find
+		if dclass is not None:
+			if not self._store_va_drug_class(for_rxcui, rel_rxcui, dclass):
+				logging.error('Failed to store drug class {} to {}'.format(dclass, rxcui))
 		
 		return dclass
 	

@@ -16,7 +16,7 @@ SQLITE_INSTANCES = {}
 class SQLite (object):
 	""" SQLite access
 	"""
-	
+
 	@classmethod
 	def get(cls, database):
 		""" Use this to get SQLite instances for a given database. Avoids
@@ -49,8 +49,8 @@ class SQLite (object):
 		SQLITE_INSTANCES = clean
 		
 		return by_thread[database]
-	
-	
+
+
 	def __init__(self, database=None):
 		if database is None:
 			raise Exception('No database provided')
@@ -58,8 +58,8 @@ class SQLite (object):
 		self.database = database
 		self.handle = None
 		self.cursor = None
-	
-		
+
+
 	def execute(self, sql, params=()):
 		""" Executes an SQL command and returns the cursor.execute, which can
 		be used as an iterator.
@@ -111,7 +111,7 @@ class SQLite (object):
 
 	def commit(self):
 		self.handle.commit()
-	
+
 	def rollback(self):
 		self.handle.rollback()
 
@@ -126,7 +126,7 @@ class SQLite (object):
 	def close(self):
 		if self.cursor is None:
 			return
-		
+
 		self.handle.close()
 		self.cursor = None
 		self.handle = None
