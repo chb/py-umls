@@ -36,13 +36,15 @@ if [ ! -e rxnorm.db ]; then
 	done
 	
 	# create an NDC table
-	echo "-> Creating NDC table"
+	echo "-> Creating extra tables"
 	# sqlite3 rxnorm.db "CREATE TABLE NDC AS SELECT RXCUI, ATV AS NDC FROM RXNSAT WHERE ATN = 'NDC';"	# we do it in 2 steps to create the primary index column
 	sqlite3 rxnorm.db "CREATE TABLE NDC (RXCUI INT, NDC VARCHAR);"
 	sqlite3 rxnorm.db "INSERT INTO NDC SELECT RXCUI, ATV FROM RXNSAT WHERE ATN = 'NDC';"
 	
-	# create a drug class table
+	# create drug class tables
 	sqlite3 rxnorm.db "CREATE TABLE VA_DRUG_CLASS (RXCUI int, RXCUI_ORIGINAL int, VA varchar);"
+	sqlite3 rxnorm.db "CREATE TABLE FRIENDLY_CLASS_NAMES (VACODE varchar, FRIENDLY varchar);"
+	sqlite3 rxnorm.db "CREATE INDEX X_FRIENDLY_CLASS_NAMES_VACODE ON FRIENDLY_CLASS_NAMES (VACODE);"
 	
 	# create indices
 	echo "-> Indexing NDC table"

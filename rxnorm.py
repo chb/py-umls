@@ -7,6 +7,7 @@
 
 import os.path
 import logging
+import re
 
 try:
 	from .sqlite import SQLite			# if py-umls is used as a module
@@ -128,6 +129,22 @@ class RxNormLookup (object):
 
 
 	# -------------------------------------------------------------------------- Drug Class
+	def find_friendly_drug_classes(self, rxcui):
+		""" Looks for the VA drug class for the given rxcui and returns all
+		known "friendly" names, if there are any, otherwise simply formats
+		the VA class name suitable for a human.
+		Returns an array
+		"""
+		va_name = self.find_va_drug_class(rxcui, deep=True)
+		if va_name is None:
+			return None
+		
+		friendly = self._friendly_va_drug_classes(va_name)
+		if friendly:
+			return friendly
+		
+		return [self.friendly_class_format(va_name)]
+	
 	def find_va_drug_class(self, rxcui, for_rxcui=None, deep=False):
 		""" Executes "_lookup_va_drug_class" then "_find_va_drug_class" on the
 		given rxcui, then "_find_va_drug_class" on all immediate related
@@ -200,9 +217,55 @@ class RxNormLookup (object):
 					logging.debug('--->  Second degree relation for {} as "{}"'.format(rel_rxcui, rel_rela))
 					dclass = self.find_va_drug_class(rel_rxcui, for_rxcui, False)
 					if dclass:
-						return dclass
+						break
 		
-		return None
+		return dclass
+	
+	
+	def _friendly_va_drug_classes(self, va_name):
+		""" Looks up the friendly class names for the given original VA drug
+		class name.
+		"""
+		if va_name is None:
+			return None
+		
+		if '[' != va_name[0] or ']' not in va_name:
+			logging.error("Invalid VA class name: {}".format(va_name))
+			return None
+		
+		names = []
+		code = va_name[1:va_name.index(']')]
+		logging.debug("{} -> {}".format(va_name, code))
+		sql = "SELECT FRIENDLY FROM FRIENDLY_CLASS_NAMES WHERE VACODE = ?"
+		for res in self.sqlite.execute(sql, (code,)):
+			names.append(res[0])
+		
+		return names if len(names) > 0 else None
+	
+	def friendly_class_format(self, va_name):
+		""" Tries to reformat the VA drug class name so it's suitable for
+		display.
+		"""
+		if va_name is None or 0 == len(va_name):
+			return None
+		
+		# remove identifier
+		if ']' in va_name:
+			va_name = va_name[va_name.index(']')+1:]
+			va_name = va_name.strip()
+		
+		# remove appended specificiers
+		if ',' in va_name and va_name.index(',') > 2:
+			va_name = va_name[0:va_name.index(',')]
+		
+		if '/' in va_name and va_name.index('/') > 2:
+			va_name = va_name[0:va_name.index('/')]
+		
+		# capitalize nicely
+		va_name = va_name.lower();
+		va_name = re.sub(r'(^| )(\w)', lambda match: r'{}{}'.format(match.group(1), match.group(2).upper()), va_name)
+		
+		return va_name
 	
 	def _lookup_va_drug_class(self, rxcui):
 		""" Returns the VA class name (the first one found) for a given RXCUI.
