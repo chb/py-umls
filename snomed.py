@@ -8,13 +8,12 @@
 
 import sys
 import os
+sys.path.insert(0, os.path.dirname(__file__))
+
 import csv
 import logging
 
-try:
-	from .sqlite import SQLite			# if py-umls is used as a module
-except:
-	from sqlite import SQLite			# for py-umls standalone
+from sqlite import SQLite			# for py-umls standalone
 
 
 class SNOMED (object):

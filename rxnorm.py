@@ -5,14 +5,13 @@
 #
 #	2014-01-28	Extracted from UMLS.py
 
+import sys
 import os.path
+sys.path.insert(0, os.path.dirname(__file__))
+
 import logging
 import re
-
-try:
-	from .sqlite import SQLite			# if py-umls is used as a module
-except:
-	from sqlite import SQLite			# for py-umls standalone
+from sqlite import SQLite
 
 
 class RxNorm (object):

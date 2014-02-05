@@ -10,12 +10,11 @@
 
 import sys
 import os.path
+sys.path.insert(0, os.path.dirname(__file__))
+
 import logging
 
-try:
-	from .sqlite import SQLite			# if py-umls is used as a module
-except:
-	from sqlite import SQLite			# for py-umls standalone
+from sqlite import SQLite			# for py-umls standalone
 
 
 class UMLS (object):
