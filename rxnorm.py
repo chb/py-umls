@@ -128,15 +128,43 @@ class RxNormLookup (object):
 		return found
 	
 	
-	# -------------------------------------------------------------------------- NDC
+	# -------------------------------------------------------------------------- RxCUI
 	def rxcui_for_ndc(self, ndc):
-		assert(ndc)
+		if ndc is None:
+			return None
 		# TODO: ensure NDC normalization
 		
 		rxcuis = {}
 		sql = "SELECT RXCUI FROM NDC WHERE NDC = ?"
 		for res in self.sqlite.execute(sql, (ndc,)):
 			rxcuis[res[0]] = rxcuis.get(res[0], 0) + 1
+		
+		if len(rxcuis) < 2:
+			return list(rxcuis.keys())[0] if len(rxcuis) > 0 else None
+		
+		popular = OrderedDict(Counter(rxcuis).most_common())
+		return popular.popitem(False)[0]
+	
+	def rxcui_for_name(self, name):
+		if name is None:
+			return None
+		
+		rxcuis = {}
+		
+		# try the full string, allowing wildcard at the trailing end
+		sql = 'SELECT RXCUI FROM RXNCONSO WHERE STR LIKE ?'
+		for res in self.sqlite.execute(sql, (name + '%',)):
+			rxcuis[res[0]] = rxcuis.get(res[0], 0) + 1
+		
+		# nothing yet, try chopping off parts from the right
+		if 0 == len(rxcuis):
+			parts = name.split()
+			for x in range(len(parts) - 1):
+				comp = ' '.join(parts[:-(x+1)])
+				for res in self.sqlite.execute(sql, (comp + '%',)):
+					rxcuis[res[0]] = rxcuis.get(res[0], 0) + 1
+				if len(rxcuis) > 0:
+					break
 		
 		if len(rxcuis) < 2:
 			return list(rxcuis.keys())[0] if len(rxcuis) > 0 else None
