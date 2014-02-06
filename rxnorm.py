@@ -169,6 +169,9 @@ class RxNormLookup (object):
 		If "deep" is true, recurses a second time on all relations of the
 		immediate relations.
 		"""
+		if rxcui is None:
+			return None
+		
 		dclass = self._lookup_va_drug_class(rxcui)
 		if dclass is not None:
 			return dclass
