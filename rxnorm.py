@@ -11,6 +11,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 import logging
 import re
+from collections import Counter, OrderedDict
 from sqlite import SQLite
 
 
@@ -125,6 +126,23 @@ class RxNormLookup (object):
 				found.add(res)
 		
 		return found
+	
+	
+	# -------------------------------------------------------------------------- NDC
+	def rxcui_for_ndc(self, ndc):
+		assert(ndc)
+		# TODO: ensure NDC normalization
+		
+		rxcuis = {}
+		sql = "SELECT RXCUI FROM NDC WHERE NDC = ?"
+		for res in self.sqlite.execute(sql, (ndc,)):
+			rxcuis[res[0]] = rxcuis.get(res[0], 0) + 1
+		
+		if len(rxcuis) < 2:
+			return list(rxcuis.keys())[0] if len(rxcuis) > 0 else None
+		
+		popular = OrderedDict(Counter(rxcuis).most_common())
+		return popular.popitem(False)[0]
 
 
 	# -------------------------------------------------------------------------- Drug Class
