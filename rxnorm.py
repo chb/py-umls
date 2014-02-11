@@ -188,29 +188,23 @@ class RxNormLookup (object):
 		if friendly:
 			return friendly
 		
-		return [self.friendly_class_format(va_name)]
+		return [va_name]
+		# return [self.friendly_class_format(va_name)]
 	
 	def find_va_drug_class(self, rxcui, for_rxcui=None, deep=False):
-		""" Executes "_lookup_va_drug_class" then "_find_va_drug_class" on the
-		given rxcui, then "_find_va_drug_class" on all immediate related
-		concepts in order to find a drug class.
+		""" Executes "_find_va_drug_class" on the given rxcui, then
+		"_find_va_drug_class" on all immediate related concepts in order to
+		find a drug class.
 		If "deep" is true, recurses a second time on all relations of the
 		immediate relations.
 		"""
 		if rxcui is None:
 			return None
-		
-		dclass = self._lookup_va_drug_class(rxcui)
-		if dclass is not None:
-			return dclass
-		
 		if for_rxcui is None:
 			for_rxcui = rxcui
 		
 		dclass = self._find_va_drug_class(rxcui)
 		if dclass is not None:
-			if not self._store_va_drug_class(for_rxcui, rxcui, dclass):
-				logging.error('Failed to store drug class {} to {}'.format(dclass, rxcui))
 			return dclass
 		
 		# no direct class, check first grade relations
@@ -266,11 +260,6 @@ class RxNormLookup (object):
 					if dclass is not None:
 						break
 		
-		# store new find
-		if dclass is not None:
-			if not self._store_va_drug_class(for_rxcui, rel_rxcui, dclass):
-				logging.error('Failed to store drug class {} to {}'.format(dclass, rxcui))
-		
 		return dclass
 	
 	
@@ -318,17 +307,6 @@ class RxNormLookup (object):
 		
 		return va_name
 	
-	def _lookup_va_drug_class(self, rxcui):
-		""" Returns the VA class name (the first one found) for a given RXCUI.
-		"""
-		if rxcui is None:
-			return None
-		
-		# check dedicated dable
-		sql = 'SELECT VA FROM VA_DRUG_CLASS WHERE RXCUI = ?'
-		res = self.sqlite.executeOne(sql, (rxcui,))
-		return res[0] if res else None
-	
 	def _find_va_drug_class(self, rxcui):
 		""" Tries to find the VA drug class in RXNSAT for the given RXCUI.
 		"""
@@ -340,28 +318,15 @@ class RxNormLookup (object):
 		res = self.sqlite.executeOne(sql, (rxcui,))
 		return res[0] if res else None
 	
-	def _store_va_drug_class(self, rxcui, original_rxcui, va_class):
-		""" Caches the given va_class as drug class for rxcui.
-		
-		- rxcui: the RXCUI to assign this class for
-		- original_rxcui: the RXCUI this class is originally assigned to
-		- va_class: the class name
-		"""
-		if rxcui is None or va_class is None:
-			logging.error("You must provide the RXCUI and the class in order to store it")
-			return
-		
-		sql = '''INSERT OR REPLACE INTO VA_DRUG_CLASS
-				(RXCUI, RXCUI_ORIGINAL, VA)
-				VALUES (?, ?, ?)'''
-		insert_id = self.sqlite.executeInsert(sql, (rxcui, original_rxcui, va_class))
-		
-		if insert_id > 0:
-			self.sqlite.commit()
-			return True
-		
-		self.sqlite.rollback()
-		return False
+	
+	# -------------------------------------------------------------------------- Bare Metal
+	def execute(self, sql, params=()):
+		""" Execute and return the pointer of an SQLite execute() query. """
+		return self.sqlite.execute(sql, params)
+	
+	def fetchAll(self, sql, params=()):
+		""" Execute and return the result of fetchall() on a raw SQL query. """
+		return self.sqlite.execute(sql, params).fetchall()
 
 
 # running this as a script does the database setup/check

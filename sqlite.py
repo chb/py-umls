@@ -63,9 +63,9 @@ class SQLite (object):
 	def execute(self, sql, params=()):
 		""" Executes an SQL command and returns the cursor.execute, which can
 		be used as an iterator.
-		Supply the params as tuple, i.e. (param,) and (param1,param2,...)
+		Supply the params as tuple, i.e. (param,) and (param1, param2, ...)
 		"""
-		if not sql or len(sql) < 1:
+		if not sql or 0 == len(sql):
 			raise Exception('No SQL to execute')
 		if not self.cursor:
 			self.connect()
