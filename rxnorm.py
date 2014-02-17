@@ -202,7 +202,10 @@ class RxNormLookup (object):
 			self._cache_va_drug_class(rxcui, rxcui, None)
 			return None
 		
-		logging.debug('-->  Checking relations for {}, has TTYs: {}'.format(rxcui, ', '.join(ttys)))
+		if rxcui == for_rxcui:
+			logging.debug('-->  Checking relations for {}, has TTYs: {}'.format(rxcui, ', '.join(ttys)))
+		else:
+			logging.debug('-->  Checking relations for {} (for {}), has TTYs: {}'.format(rxcui, for_rxcui, ', '.join(ttys)))
 		
 		priority = [
 			'has_tradename',

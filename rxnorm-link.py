@@ -8,8 +8,10 @@
 #
 #	For profiling: pycallgraph graphviz -- rxnorm-link.py
 
-import json
+import sys
 import logging
+import couchbase
+from datetime import datetime
 
 from rxnorm import RxNorm, RxNormLookup
 
@@ -119,48 +121,71 @@ def toIngredients_helper(rxcui, tty):
 
 
 if '__main__' == __name__:
-	logging.basicConfig(level=logging.DEBUG)
+	logging.basicConfig(level=logging.INFO)
 	
 	RxNorm.check_database()
 	rxhandle = RxNormLookup()
 	rxhandle.prepare_to_cache_classes()
 	
 	# prepare some SQL
-#	drug_types = ('SCD', 'SCDC', 'SBDG', 'SBD', 'SBDC', 'BN', 'SBDF', 'SCDG', 'SCDF', 'IN', 'MIN', 'PIN', 'BPCK', 'GPCK')
-	drug_types = ('SCD', 'SCDC', 'SBDG', 'SBD')
+	# drug_types = ('SCD', 'SCDC', 'SBDG', 'SBD')
+	drug_types = ('SCD', 'SCDC', 'SBDG', 'SBD', 'SBDC', 'BN', 'SBDF', 'SCDG', 'SCDF', 'IN', 'MIN', 'PIN', 'BPCK', 'GPCK')
 	param = ', '.join(['?' for x in range(0, len(drug_types))])
-	sql = "SELECT RXCUI, TTY from RXNCONSO where SAB='RXNORM' and TTY in ({})".format(param)
-	
+	all_sql = "SELECT RXCUI, TTY from RXNCONSO where SAB='RXNORM' and TTY in ({})".format(param)
 	label_sql = "SELECT STR from RXNCONSO where RXCUI=? and SAB='RXNORM' and TTY in ({})".format(param)
 	
-	all_drugs = rxhandle.fetchAll(sql, drug_types)
+	# prepare Couchbase
+	try:
+		cb = couchbase.Couchbase.connect(bucket='rxnorm')
+	except Exception as e:
+		logging.error(e)
+		sys.exit(1)
 	
-	# clean old links
-	# TODO: do clean indeed
+	fmt = couchbase.FMT_JSON
 	
-	# loop results
+	# loop all drugs
+	all_drugs = rxhandle.fetchAll(all_sql, drug_types)
+	num_drugs = len(all_drugs)
+	print('->  Indexing {} items'.format(num_drugs))
+	
+	i = 0
+	w_ti = 0
+	w_va = 0
+	last_report = datetime.now()
 	for res in all_drugs:
-		ii = toIngredients([res[0]], res[1])
+		ingr = toIngredients([res[0]], res[1])
 		
 		params = [res[0]]
 		params.extend(drug_types)
 		label = rxhandle.execute(label_sql, params).fetchone()[0]
+		
+		ti = toTreatmentIntents(ingr, 'IN')
+		if len(ti) > 0:
+			w_ti += 1
+		va = rxhandle.find_va_drug_class(res[0], until_found=True)
+		if va is not None:
+			w_va += 1
 		
 		# create JSON document and insert
 		d = {
 			'_id': res[0],
 			'tty': res[1],
 			'label': label,
-			'ingredients': list(ii),
+			'ingredients': list(ingr),
 			'generics': list(toBrandAndGeneric([res[0]], res[1])),
 			'components': list(toComponents([res[0]], res[1])),
-		#   'mechanisms': list(toMechanism(ii, 'IN')),
-			'treatmentIntents': list(toTreatmentIntents(ii, 'IN')),
-			'va_class': rxhandle.find_va_drug_class(res[0])
+		#   'mechanisms': list(toMechanism(ingr, 'IN')),
+			'treatmentIntents': list(ti),
+			'va_class': va
 		}
-		print(json.dumps(d, sort_keys=True, indent=2))
-		# TODO: insert
 		
-		# if int(res[0]) > 500:
-		# 	break
+		# insert into Couchbase (using .set() will overwrite existing documents)
+		# print(json.dumps(d, sort_keys=True, indent=2))
+		cb.set(res[0], d, format=fmt)
+		i += 1
+		
+		# inform every 5 seconds or so
+		if (datetime.now() - last_report).seconds > 5:
+			last_report = datetime.now()
+			print('->  {:2.3%}   n: {}, ti: {}, va: {}'.format(i / num_drugs, i, w_ti, w_va), end="\r")
 
