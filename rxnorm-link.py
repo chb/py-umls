@@ -9,6 +9,7 @@
 #	For profiling: pycallgraph graphviz -- rxnorm-link.py
 
 import sys
+import signal
 import logging
 import couchbase
 from datetime import datetime
@@ -123,6 +124,13 @@ def toIngredients_helper(rxcui, tty):
 if '__main__' == __name__:
 	logging.basicConfig(level=logging.INFO)
 	
+	# install keyboard interrupt handler
+	def signal_handler(signal, frame):
+		print("\nx>  Aborted")
+		sys.exit(0)
+	signal.signal(signal.SIGINT, signal_handler)
+	
+	# prepare databases
 	RxNorm.check_database()
 	rxhandle = RxNormLookup()
 	rxhandle.prepare_to_cache_classes()
@@ -151,6 +159,7 @@ if '__main__' == __name__:
 	i = 0
 	w_ti = 0
 	w_va = 0
+	w_either = 0
 	last_report = datetime.now()
 	for res in all_drugs:
 		ingr = toIngredients([res[0]], res[1])
@@ -160,11 +169,13 @@ if '__main__' == __name__:
 		label = rxhandle.execute(label_sql, params).fetchone()[0]
 		
 		ti = toTreatmentIntents(ingr, 'IN')
+		va = rxhandle.find_va_drug_class(res[0], until_found=True)
 		if len(ti) > 0:
 			w_ti += 1
-		va = rxhandle.find_va_drug_class(res[0], until_found=True)
 		if va is not None:
 			w_va += 1
+		if va is not None or len(ti) > 0:
+			w_either += 1
 		
 		# create JSON document and insert
 		d = {
@@ -187,5 +198,8 @@ if '__main__' == __name__:
 		# inform every 5 seconds or so
 		if (datetime.now() - last_report).seconds > 5:
 			last_report = datetime.now()
-			print('->  {:2.3%}   n: {}, ti: {}, va: {}'.format(i / num_drugs, i, w_ti, w_va), end="\r")
+			print('->  {:.3%}   n: {}, ti: {}, va: {}, either: {}'.format(i / num_drugs, i, w_ti, w_va, w_either), end="\r")
+	
+	print('->  {:.3%}   n: {}, ti: {}, va: {}, either: {}'.format(i / num_drugs, i, w_ti, w_va, w_either))
+	print('=>  Done')
 

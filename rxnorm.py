@@ -199,7 +199,6 @@ class RxNormLookup (object):
 		# no direct class, check first grade relations
 		ttys = self.lookup_tty(rxcui)
 		if ttys is None or 0 == len(ttys):
-			self._cache_va_drug_class(rxcui, rxcui, None)
 			return None
 		
 		if rxcui == for_rxcui:
@@ -263,15 +262,16 @@ class RxNormLookup (object):
 		sql = 'SELECT ATV FROM RXNSAT WHERE RXCUI = ? AND ATN = "VA_CLASS_NAME"'
 		res = self.sqlite.executeOne(sql, (rxcui,))
 		
-		# cache if found
+		# cache; the main rxcui even if not found
 		if res is not None:
-			logging.debug('-->  Found class for {} in {}'.format(for_rxcui, rxcui))
+			self._cache_va_drug_class(rxcui, for_rxcui, res[0])
 			if for_rxcui is not None and for_rxcui != rxcui:
 				self._cache_va_drug_class(for_rxcui, for_rxcui, res[0])
-			self._cache_va_drug_class(rxcui, for_rxcui, res[0])
 			
+			logging.debug('-->  Found class for {} in {}'.format(for_rxcui, rxcui))
 			return res[0]
 		
+		self._cache_va_drug_class(rxcui, for_rxcui, None)
 		return None
 	
 	
