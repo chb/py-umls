@@ -39,6 +39,7 @@ class RxNormLookup (object):
 	""" Class for RxNorm lookup. """
 	
 	sqlite = None
+	cache_drug_class = False		# will be set to true if the prepare_to_cache_classes method gets called
 	
 	
 	def __init__(self):
@@ -174,42 +175,31 @@ class RxNormLookup (object):
 
 
 	# -------------------------------------------------------------------------- Drug Class
-	def find_friendly_drug_classes(self, rxcui):
-		""" Looks for the VA drug class for the given rxcui and returns all
-		known "friendly" names, if there are any, otherwise simply formats
-		the VA class name suitable for a human.
-		Returns an array
-		"""
-		va_name = self.find_va_drug_class(rxcui, deep=True)
-		if va_name is None:
-			return None
-		
-		friendly = self._friendly_va_drug_classes(va_name)
-		if friendly:
-			return friendly
-		
-		return [va_name]
-		# return [self.friendly_class_format(va_name)]
+	def prepare_to_cache_classes(self):
+		if self.sqlite.create('drug_class_cache', '(rxcui primary key, rxcui_orig int, VA varchar)'):
+			self.cache_drug_class = True
 	
-	def find_va_drug_class(self, rxcui, for_rxcui=None, deep=False):
+	
+	def find_va_drug_class(self, rxcui, for_rxcui=None, until_found=False):
 		""" Executes "_find_va_drug_class" on the given rxcui, then
 		"_find_va_drug_class" on all immediate related concepts in order to
 		find a drug class.
-		If "deep" is true, recurses a second time on all relations of the
-		immediate relations.
+		If "until_found" is true, recurses on all relations of the immediate
+		relations until a class is found or there are no more relations (!!).
 		"""
 		if rxcui is None:
 			return None
 		if for_rxcui is None:
 			for_rxcui = rxcui
 		
-		dclass = self._find_va_drug_class(rxcui)
+		dclass = self._find_va_drug_class(rxcui, for_rxcui)
 		if dclass is not None:
 			return dclass
 		
 		# no direct class, check first grade relations
 		ttys = self.lookup_tty(rxcui)
 		if ttys is None or 0 == len(ttys):
+			self._cache_va_drug_class(rxcui, rxcui, None)
 			return None
 		
 		logging.debug('-->  Checking relations for {}, has TTYs: {}'.format(rxcui, ', '.join(ttys)))
@@ -241,26 +231,83 @@ class RxNormLookup (object):
 					for rel_rxcui, rel_rela in relas:
 						
 						# lookup class for relation
-						dclass = self._find_va_drug_class(rel_rxcui)
+						if until_found:
+							dclass = self.find_va_drug_class(rel_rxcui, for_rxcui, until_found)
+						else:
+							dclass = self._find_va_drug_class(rel_rxcui, for_rxcui)
+						
 						if dclass is not None:
 							break
 			if dclass is not None:
 				break
 		
-		# deeper recursion if we still don't have a class
-		if dclass is None and deep:
-			sec_relas = self.lookup_related(rxcui)
-			if sec_relas is not None:
-				for rel_rxcui, rel_rela in sec_relas:
-					if rel_rela in ['constitutes', 'dose_form_of']:
-						continue
-					
-					logging.debug('--->  Second degree relation for {} as "{}"'.format(rel_rxcui, rel_rela))
-					dclass = self.find_va_drug_class(rel_rxcui, for_rxcui, False)
-					if dclass is not None:
-						break
-		
 		return dclass
+	
+	def _find_va_drug_class(self, rxcui, for_rxcui):
+		""" Tries to find the VA drug class in RXNSAT for the given RXCUI.
+		- rxcui The RXCUI to seek a drug class for
+		- for_rxcui The original RXCUI for which a drug class is being seeked
+		"""
+		if rxcui is None:
+			return None
+		
+		# is it cached?
+		dclass = self._lookup_cached_va_drug_class(rxcui)
+		if dclass is not None:
+			return dclass
+		
+		# look in RXNSAT table
+		sql = 'SELECT ATV FROM RXNSAT WHERE RXCUI = ? AND ATN = "VA_CLASS_NAME"'
+		res = self.sqlite.executeOne(sql, (rxcui,))
+		
+		# cache if found
+		if res is not None:
+			logging.debug('-->  Found class for {} in {}'.format(for_rxcui, rxcui))
+			if for_rxcui is not None and for_rxcui != rxcui:
+				self._cache_va_drug_class(for_rxcui, for_rxcui, res[0])
+			self._cache_va_drug_class(rxcui, for_rxcui, res[0])
+			
+			return res[0]
+		
+		return None
+	
+	
+	def _lookup_cached_va_drug_class(self, rxcui):
+		""" Returns the VA class name (the first one found) for a given RXCUI.
+		"""
+		if not self.cache_drug_class:
+			return None		
+		if rxcui is None:
+			return None
+		
+		# check dedicated dable
+		sql = 'SELECT VA FROM drug_class_cache WHERE rxcui = ?'
+		res = self.sqlite.executeOne(sql, (rxcui,))
+		return res[0] if res else None
+
+	def _cache_va_drug_class(self, rxcui, original_rxcui, va_class):
+		""" Caches the given va_class as drug class for rxcui.
+		
+		- rxcui: the RXCUI to assign this class for
+		- original_rxcui: the RXCUI this class is originally assigned to
+		- va_class: the class name
+		"""
+		if not self.cache_drug_class:
+			return
+		
+		if rxcui is None:
+			logging.error("You must provide the RXCUI to store its class")
+			return
+		
+		sql = '''INSERT OR REPLACE INTO drug_class_cache
+				 (rxcui, rxcui_orig, VA) VALUES (?, ?, ?)'''
+		for_rxcui = original_rxcui if rxcui != original_rxcui else None
+		insert_id = self.sqlite.executeInsert(sql, (rxcui, for_rxcui, va_class))
+		
+		if insert_id > 0:
+			self.sqlite.commit()
+		else:
+			self.sqlite.rollback()
 	
 	
 	def _friendly_va_drug_classes(self, va_name):
@@ -307,17 +354,6 @@ class RxNormLookup (object):
 		
 		return va_name
 	
-	def _find_va_drug_class(self, rxcui):
-		""" Tries to find the VA drug class in RXNSAT for the given RXCUI.
-		"""
-		if rxcui is None:
-			return None
-		
-		# look in RXNSAT table
-		sql = 'SELECT ATV FROM RXNSAT WHERE RXCUI = ? AND ATN = "VA_CLASS_NAME"'
-		res = self.sqlite.executeOne(sql, (rxcui,))
-		return res[0] if res else None
-	
 	
 	# -------------------------------------------------------------------------- Bare Metal
 	def execute(self, sql, params=()):
@@ -338,7 +374,7 @@ if '__main__' == __name__:
 	code = '328406'
 	meaning = look.lookup_code_meaning(code, preferred=False)
 	dclass = look.find_va_drug_class(code)
-	fclasses = look.find_friendly_drug_classes(code)
+	fclasses = look.friendly_class_format(dclass)
 	print('RxNorm code      "{0}":  {1}'.format(code, meaning))
 	print('Drug class       "{0}":  {1}'.format(code, dclass))
 	print('Friendly classes "{0}":  {1}'.format(code, fclasses))

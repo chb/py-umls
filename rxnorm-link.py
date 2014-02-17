@@ -119,8 +119,11 @@ def toIngredients_helper(rxcui, tty):
 
 
 if '__main__' == __name__:
+	logging.basicConfig(level=logging.DEBUG)
+	
 	RxNorm.check_database()
 	rxhandle = RxNormLookup()
+	rxhandle.prepare_to_cache_classes()
 	
 	# prepare some SQL
 #	drug_types = ('SCD', 'SCDC', 'SBDG', 'SBD', 'SBDC', 'BN', 'SBDF', 'SCDG', 'SCDF', 'IN', 'MIN', 'PIN', 'BPCK', 'GPCK')
