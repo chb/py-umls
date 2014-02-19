@@ -49,6 +49,32 @@ class RxNormLookup (object):
 	
 	
 	# -------------------------------------------------------------------------- "name" lookup
+	def lookup_rxcui(self, rxcui, preferred=True):
+		""" Return a tuple with (str, tty, rxcui, rxaui) or a list of tuples if
+		"preferred" is False.
+		"""
+		if rxcui is None or len(rxcui) < 1:
+			return ''
+		
+		# retrieve all matches
+		sql = 'SELECT str, tty, rxcui, rxaui FROM rxnconso WHERE rxcui = ? AND lat = "ENG"'
+		
+		found = []
+		for res in self.sqlite.execute(sql, (rxcui,)):
+			found.append(res)
+		
+		if 0 == len(found):
+			return None
+		
+		if preferred:
+			for tty in ['BN', 'IN', 'PIN', 'SBDC', 'SCDC', 'SBD', 'SCD', 'MIN']:
+				for res in found:
+					if tty == res[1]:
+						return res
+			return found[0]
+		
+		return found
+	
 	def lookup_rxcui_name(self, rxcui, preferred=True, no_html=True):
 		""" Return a string or HTML for the meaning of the given code.
 		If preferred is True (the default), only one match will be returned,
@@ -56,6 +82,7 @@ class RxNormLookup (object):
 		if rxcui is None or len(rxcui) < 1:
 			return ''
 		
+		# TODO: use self.lookup_rxcui()
 		# retrieve all matches
 		sql = 'SELECT STR, TTY, RXAUI FROM RXNCONSO WHERE RXCUI = ? AND LAT = "ENG"'
 		found = []
@@ -98,39 +125,18 @@ class RxNormLookup (object):
 		return None
 	
 	
-	def lookup_rxaui(self, rxaui):
-		""" Return a tuple with (str, tty, rxaui, rxcui).
-		"""
-		if rxaui is None or len(rxaui) < 1:
-			return ''
-		
-		# retrieve all matches
-		sql = 'SELECT str, tty, rxaui, rxcui FROM rxnconso WHERE rxaui = ? AND lat = "ENG"'
-		return self.sqlite.executeOne(sql, (rxaui,))
-	
-	
 	# -------------------------------------------------------------------------- Relations
 	def lookup_tty(self, rxcui):
 		""" Returns a set of TTYs for the given RXCUI. """
 		if rxcui is None:
 			return None
 		
-		sql = 'SELECT TTY FROM RXNCONSO WHERE RXCUI = ?'
+		sql = 'SELECT tty FROM rxnconso WHERE rxcui = ?'
 		ttys = set()
 		for res in self.sqlite.execute(sql, (rxcui,)):
 			ttys.add(res[0])
 		
 		return ttys
-	
-	def lookup_tty_rxaui(self, rxaui):
-		""" Returns a set of TTYs for the given RXAUI. """
-		if rxaui is None:
-			return None
-		
-		sql = 'SELECT tty FROM rxnconso WHERE rxaui = ?'
-		res = self.sqlite.executeOne(sql, (rxaui,))
-		
-		return res[0] if res else None
 	
 	def lookup_related(self, rxcui, relation=None):
 		""" Returns a set of tuples containing the RXCUI and the actual relation
@@ -141,37 +147,12 @@ class RxNormLookup (object):
 		
 		found = set()
 		if relation is not None:
-			sql = "SELECT RXCUI2, RELA FROM RXNREL WHERE RXCUI1 = ? AND RELA = ?"
+			sql = "SELECT rxcui1, rela FROM rxnrel WHERE rxcui2 = ? AND rela = ?"
 			for res in self.sqlite.execute(sql, (rxcui, relation)):
 				found.add(res)
 		else:
-			sql = "SELECT RXCUI2, RELA FROM RXNREL WHERE RXCUI1 = ?"
+			sql = "SELECT rxcui1, rela FROM rxnrel WHERE rxcui2 = ? AND rela IS NOT 'inverse_isa'"
 			for res in self.sqlite.execute(sql, (rxcui,)):
-				found.add(res)
-		
-		return found
-	
-	def lookup_related_rxaui(self, rxaui, relations=None):
-		""" Returns a tuple of RXAUIs and the actual relation which relate to
-		the receiver's RXAUI, limited to the given relations, or any if
-		"relations" is None.
-		- rxaui The rxaui of the object to look up
-		- relations A list of "rela" names to limit to
-		"""
-		if rxaui is None:
-			return None
-		
-		found = set()
-		if relations is not None and len(relations) > 0:
-			place = ', '.join(['?' for x in range(0, len(relations))])
-			sql = "SELECT rxaui1, rela FROM rxnrel WHERE rxaui2 = ? AND rela IN ({})".format(place)
-			params = [rxaui]
-			params.extend(relations)
-			for res in self.sqlite.execute(sql, params):
-				found.add(res)
-		else:
-			sql = "SELECT rxaui1, rela FROM RXNREL WHERE rxaui2 = ?"
-			for res in self.sqlite.execute(sql, (rxaui,)):
 				found.add(res)
 		
 		return found
@@ -416,16 +397,16 @@ class RxNormLookup (object):
 		return self.sqlite.execute(sql, params).fetchall()
 
 
-class RxNormAUI (GraphableObject):
-	rxaui = None
+class RxNormCUI (GraphableObject):
+	rxcui = None
 	_tty = None
 	relations = None
 	rxlookup = RxNormLookup()
 	
-	def __init__(self, rxaui, label=None):
-		super().__init__(rxaui, rxaui)
+	def __init__(self, rxcui, label=None):
+		super().__init__(rxcui, rxcui)
 		self.shape = 'box'
-		self.rxaui = rxaui
+		self.rxcui = rxcui
 	
 	@property
 	def tty(self):
@@ -439,15 +420,15 @@ class RxNormAUI (GraphableObject):
 	
 	def find_relations(self):
 		found = []
-		for rxaui, rela in self.rxlookup.lookup_related_rxaui(self.rxaui):
-			obj = RxNormAUI(rxaui)
-			rel = RxNormRelation(self, rela, obj)
+		for rxcui, rela in self.rxlookup.lookup_related(self.rxcui):
+			obj = RxNormCUI(rxcui)
+			rel = RxNormConceptRelation(self, rela, obj)
 			found.append(rel)
 		
 		self.relations = found
 	
 	def deliver_to(self, dot_context):
-		self.update_self_from_rxaui()		
+		self.update_self_from_rxcui()		
 		super().deliver_to(dot_context)
 	
 	def announce_relations_to(self, dot_context):
@@ -458,36 +439,31 @@ class RxNormAUI (GraphableObject):
 			rel.announce_to(dot_context)
 	
 	
-	def update_self_from_rxaui(self):
-		if self.rxaui:
-			res = self.rxlookup.lookup_rxaui(self.rxaui)
+	def update_self_from_rxcui(self):
+		if self.rxcui:
+			res = self.rxlookup.lookup_rxcui(self.rxcui)
 			self.label = "{0}\n[{2} {1}]".format(*res)
 			self.tty = res[1]
 	
 	def update_shape_from_tty(self):
 		if self._tty:
-			if 'IN' == self._tty:
+			if 'IN' == self._tty[-2:]:
 				self.shape = 'polygon,sides=5'
-			elif 'BN' == self._tty:
+				if 'MIN' == self._tty:
+					self.shape += ',peripheries=2'
+			elif 'BD' == self._tty or 'BN' == self._tty:
 				self.shape = 'polygon,sides=4,skew=.4'
+			elif 'SCD' == self._tty[:3]:
+				self.shape = 'box,peripheries=2'
 
-
-class RxNormCUI (object):
-	rxcui = None
-	atoms = None
+class RxNormConceptRelation (GraphableRelation):
+	rxcui1 = None
+	rxcui2 = None
 	
-	def __init__(self, rxcui):
-		self.rxcui = rxcui
-
-
-class RxNormRelation (GraphableRelation):
-	rxaui1 = None
-	rxaui2 = None
-	
-	def __init__(self, rxauiobj1, rela, rxauiobj2):
-		super().__init__(rxauiobj1, rela, rxauiobj2)
-		self.rxaui1 = rxauiobj1
-		self.rxaui2 = rxauiobj2
+	def __init__(self, rxcuiobj1, rela, rxcuiobj2):
+		super().__init__(rxcuiobj1, rela, rxcuiobj2)
+		self.rxcui1 = rxcuiobj1
+		self.rxcui2 = rxcuiobj2
 
 
 # running this as a script does the database setup/check

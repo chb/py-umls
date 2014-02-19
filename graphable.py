@@ -107,7 +107,7 @@ class DotContext (object):
 	items = None
 	source = None
 	depth = 0
-	max_depth = 14
+	max_depth = 4		# this is not quite working correctly I think...
 	
 	def __init__(self, max_depth=None):
 		self.items = set()
