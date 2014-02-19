@@ -7,6 +7,7 @@
 #	2014-02-18	Created by Pascal Pfiffner
 
 import sys
+import subprocess
 
 from rxnorm import RxNormCUI
 from graphable import GraphvizGraphic
@@ -19,5 +20,11 @@ if '__main__' == __name__:
 		sys.exit(0)
 	
 	rx = RxNormCUI(rxcui)
-	gv = GraphvizGraphic('graph.png')
+	gv = GraphvizGraphic('rxgraph.png')
+	gv.out_dot = 'rxgraph.dot'
 	gv.write_dot_graph(rx)
+	
+	print('->  DOT file:   {}'.format(gv.out_dot))
+	print('->  PNG graph:  {}'.format(gv.out_file))
+	
+	subprocess.call(['open', gv.out_file])

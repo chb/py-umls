@@ -124,11 +124,12 @@ class DotContext (object):
 
 class GraphvizGraphic (object):
 	cmd = 'dot'
+	out_dot = None
 	out_type = 'png'
 	out_file = None
 	
-	def __init__(self, outfile):
-		self.out_file = outfile
+	def __init__(self, out_file='rxgraph.png'):
+		self.out_file = out_file
 	
 	def executableCommand(self, infile):
 		return [
@@ -139,27 +140,28 @@ class GraphvizGraphic (object):
 		]
 	
 	def write_dot_graph(self, obj):
-		assert self.out_file
+		if self.out_file is None:
+			raise Exception('Please assign an output filename to "out_file"')
 		
 		context = DotContext()
 		obj.announce_to(context)
-		dot = context.get()
-		
 		source = """digraph G {{
-	ranksep=equally;\n{}}}\n""".format(dot)
+	ranksep=equally;\n{}}}\n""".format(context.get())
 		
 		# write to a temporary file
 		filedesc, tmpname = tempfile.mkstemp()
 		with os.fdopen(filedesc, 'w') as handle:
 			handle.write(source)
 		
-		# execute dot	
+		# execute command
 		cmd = self.executableCommand(tmpname)
 		ret = subprocess.call(cmd)
 		
-		os.unlink(tmpname)
-		if ret > 0:
-			raise Exception('Failed executing: "{}"'.format(cmd))
+		if self.out_dot:
+			os.rename(tmpname, self.out_dot)
+		else:
+			os.unlink(tmpname)
 		
-		subprocess.call(['open', self.out_file])
+		if ret > 0:
+			raise Exception('Failed executing: "{}"'.format(' '.join(cmd)))
 
