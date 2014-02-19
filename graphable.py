@@ -63,11 +63,16 @@ class GraphableObject (object):
 	def announce_to(self, dot_context):
 		""" Announce to the context if we need to declare properties.
 		Subclasses MUST NOT announce other graphable objects they are holding
-		on to here but they MUST announce them in their "deliver_to"
-		implementation if they want them to be exported to the context.
+		on to here but they MUST announce them in "announce_relations_to"
+		if they want them to be exported to the context at one point.
 		"""
 		if self.should_announce():
 			dot_context.announce(self)
+	
+	def announce_relations_to(self, dot_context):
+		""" Announce any relations the receiver may have. This is called by the
+		context if it desires the receiver's relations. """
+		pass
 
 
 class GraphableRelation (GraphableObject):
@@ -93,30 +98,32 @@ class GraphableRelation (GraphableObject):
 		
 		return ''
 	
-	def deliver_to(self, dot_context):
+	def announce_relations_to(self, dot_context):
 		self.relation_from.announce_to(dot_context)
 		self.relation_to.announce_to(dot_context)
-		super().deliver_to(dot_context)
 
 
 class DotContext (object):
 	items = None
 	source = None
 	depth = 0
-	max_depth = 0
+	max_depth = 14
 	
-	def __init__(self, max_depth=8):
+	def __init__(self, max_depth=None):
 		self.items = set()
 		self.source = ''
 		self.depth = 0
-		self.max_depth = max_depth
+		if max_depth is not None:
+			self.max_depth = max_depth
 	
 	def announce(self, obj):
 		if obj.identifier not in self.items:
 			self.items.add(obj.identifier)
+			
+			obj.deliver_to(self)
 			if self.depth < self.max_depth:
 				self.depth += 1
-				obj.deliver_to(self)
+				obj.announce_relations_to(self)
 				self.depth -= 1
 	
 	def deliver(self, obj):
@@ -138,8 +145,8 @@ class GraphvizGraphic (object):
 		return [
 			self.cmd,
 			'-T{}'.format(self.out_type),
-			'-o{}'.format(self.out_file),
-			infile
+			infile,
+			'-o', format(self.out_file),
 		]
 	
 	def write_dot_graph(self, obj):
@@ -149,18 +156,22 @@ class GraphvizGraphic (object):
 		obj.announce_to(context)
 		dot = context.get()
 		
-		source = "digraph G {{\n{}}}\n".format(dot)
-		print(source)
+		source = """digraph G {{
+	ranksep=equally;
+	{}}}\n""".format(dot)
+		
 		# write to a temporary file
 		filedesc, tmpname = tempfile.mkstemp()
 		with os.fdopen(filedesc, 'w') as handle:
 			handle.write(source)
-			
-			cmd = self.executableCommand(tmpname)
-			ret = subprocess.call(cmd)
-			print(' '.join(cmd))
-			print("ret", ret)
-			#os.unlink(tmpname)
-			if ret > 0:
-				raise Exception('Failed executing: "{}"'.format(cmd))
+		
+		# execute dot	
+		cmd = self.executableCommand(tmpname)
+		ret = subprocess.call(cmd)
+		
+		os.unlink(tmpname)
+		if ret > 0:
+			raise Exception('Failed executing: "{}"'.format(cmd))
+		
+		subprocess.call(['open', self.out_file])
 

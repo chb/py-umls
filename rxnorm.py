@@ -98,21 +98,15 @@ class RxNormLookup (object):
 		return None
 	
 	
-	def lookup_rxaui_name(self, rxaui, str_format="{0} [{1}]"):
-		""" Return a string for the meaning of the given RXAUI.
+	def lookup_rxaui(self, rxaui):
+		""" Return a tuple with (str, tty, rxaui, rxcui).
 		"""
 		if rxaui is None or len(rxaui) < 1:
 			return ''
 		
 		# retrieve all matches
 		sql = 'SELECT str, tty, rxaui, rxcui FROM rxnconso WHERE rxaui = ? AND lat = "ENG"'
-		name = ''
-		
-		res = self.sqlite.executeOne(sql, (rxaui,))
-		if res is not None:
-			name = str_format.format(*res)
-		
-		return name
+		return self.sqlite.executeOne(sql, (rxaui,))
 	
 	
 	# -------------------------------------------------------------------------- Relations
@@ -426,6 +420,7 @@ class RxNormAUI (GraphableObject):
 	rxaui = None
 	_tty = None
 	relations = None
+	rxlookup = RxNormLookup()
 	
 	def __init__(self, rxaui, label=None):
 		super().__init__(rxaui, rxaui)
@@ -443,11 +438,8 @@ class RxNormAUI (GraphableObject):
 	
 	
 	def find_relations(self):
-		look = RxNormLookup()
-		self.update_self_from_rxaui(look)		# while we're at it
-		
 		found = []
-		for rxaui, rela in look.lookup_related_rxaui(self.rxaui):
+		for rxaui, rela in self.rxlookup.lookup_related_rxaui(self.rxaui):
 			obj = RxNormAUI(rxaui)
 			rel = RxNormRelation(self, rela, obj)
 			found.append(rel)
@@ -455,21 +447,22 @@ class RxNormAUI (GraphableObject):
 		self.relations = found
 	
 	def deliver_to(self, dot_context):
+		self.update_self_from_rxaui()		
+		super().deliver_to(dot_context)
+	
+	def announce_relations_to(self, dot_context):
 		if self.relations is None:
 			self.find_relations()
-		
-		super().deliver_to(dot_context)
 		
 		for rel in self.relations:
 			rel.announce_to(dot_context)
 	
 	
-	def update_self_from_rxaui(self, look=None):
+	def update_self_from_rxaui(self):
 		if self.rxaui:
-			if look is None:
-				look = RxNormLookup()
-			self.tty = look.lookup_tty_rxaui(self.rxaui)
-			self.label = look.lookup_rxaui_name(self.rxaui, str_format="{0}\n[{2} {1}]")
+			res = self.rxlookup.lookup_rxaui(self.rxaui)
+			self.label = "{0}\n[{2} {1}]".format(*res)
+			self.tty = res[1]
 	
 	def update_shape_from_tty(self):
 		if self._tty:
