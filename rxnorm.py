@@ -48,11 +48,12 @@ class RxNormLookup (object):
 		self.sqlite = SQLite.get(os.path.join(absolute, 'databases/rxnorm.db'))
 	
 	
-	def lookup_code_meaning(self, rx_id, preferred=True, no_html=True):
-		""" Return HTML for the meaning of the given code.
+	# -------------------------------------------------------------------------- "name" lookup
+	def lookup_rxcui_name(self, rxcui, preferred=True, no_html=True):
+		""" Return a string or HTML for the meaning of the given code.
 		If preferred is True (the default), only one match will be returned,
 		looking for specific TTY and using the "best" one. """
-		if rx_id is None or len(rx_id) < 1:
+		if rxcui is None or len(rxcui) < 1:
 			return ''
 		
 		# retrieve all matches
@@ -65,7 +66,7 @@ class RxNormLookup (object):
 			str_format = "<span title=\"RXAUI: {2}\">{0} <span style=\"color:#888;\">[{1}]</span></span>"
 		
 		# loop over them
-		for res in self.sqlite.execute(sql, (rx_id,)):
+		for res in self.sqlite.execute(sql, (rxcui,)):
 			found.append(res)
 		
 		if len(found) > 0:
@@ -95,6 +96,23 @@ class RxNormLookup (object):
 				return "; ".join(names)
 			return "<br/>\n".join(names)
 		return None
+	
+	
+	def lookup_rxaui_name(self, rxaui, str_format="{0} [{1}]"):
+		""" Return a string for the meaning of the given RXAUI.
+		"""
+		if rxaui is None or len(rxaui) < 1:
+			return ''
+		
+		# retrieve all matches
+		sql = 'SELECT str, tty, rxaui, rxcui FROM rxnconso WHERE rxaui = ? AND lat = "ENG"'
+		name = ''
+		
+		res = self.sqlite.executeOne(sql, (rxaui,))
+		if res is not None:
+			name = str_format.format(*res)
+		
+		return name
 	
 	
 	# -------------------------------------------------------------------------- Relations
@@ -152,13 +170,13 @@ class RxNormLookup (object):
 		found = set()
 		if relations is not None and len(relations) > 0:
 			place = ', '.join(['?' for x in range(0, len(relations))])
-			sql = "SELECT rxaui2, rela FROM rxnrel WHERE rxaui1 = ? AND rela IN ({})".format(place)
+			sql = "SELECT rxaui1, rela FROM rxnrel WHERE rxaui2 = ? AND rela IN ({})".format(place)
 			params = [rxaui]
 			params.extend(relations)
 			for res in self.sqlite.execute(sql, params):
 				found.add(res)
 		else:
-			sql = "SELECT rxaui2, rela FROM RXNREL WHERE rxaui1 = ?"
+			sql = "SELECT rxaui1, rela FROM RXNREL WHERE rxaui2 = ?"
 			for res in self.sqlite.execute(sql, (rxaui,)):
 				found.add(res)
 		
@@ -406,34 +424,33 @@ class RxNormLookup (object):
 
 class RxNormAUI (GraphableObject):
 	rxaui = None
-	tty = None
+	_tty = None
 	relations = None
 	
 	def __init__(self, rxaui, label=None):
-		super().__init__(rxaui)
+		super().__init__(rxaui, rxaui)
 		self.shape = 'box'
 		self.rxaui = rxaui
 	
+	@property
+	def tty(self):
+		return self._tty
+	
+	@tty.setter
+	def tty(self, val):
+		self._tty = val
+		self.update_shape_from_tty()
+	
+	
 	def find_relations(self):
 		look = RxNormLookup()
-		if self.tty is None:
-			self.tty = look.lookup_tty_rxaui(self.rxaui)
-			self.label = "{} [{}]".format(self.name, self.tty)
+		self.update_self_from_rxaui(look)		# while we're at it
 		
-		mapping = {
-			'BN': ['has_ingredient'],
-			'BD': []
-		}
-		
-		rels = mapping.get(self.tty)
 		found = []
-		
-		# only get relations if we know which ones to prevent a large network
-		if rels and len(rels) > 0:
-			for rxaui, rela in look.lookup_related_rxaui(self.rxaui, rels):
-				obj = RxNormAUI(rxaui)
-				rel = RxNormRelation(self, rela, obj)
-				found.append(rel)
+		for rxaui, rela in look.lookup_related_rxaui(self.rxaui):
+			obj = RxNormAUI(rxaui)
+			rel = RxNormRelation(self, rela, obj)
+			found.append(rel)
 		
 		self.relations = found
 	
@@ -445,6 +462,21 @@ class RxNormAUI (GraphableObject):
 		
 		for rel in self.relations:
 			rel.announce_to(dot_context)
+	
+	
+	def update_self_from_rxaui(self, look=None):
+		if self.rxaui:
+			if look is None:
+				look = RxNormLookup()
+			self.tty = look.lookup_tty_rxaui(self.rxaui)
+			self.label = look.lookup_rxaui_name(self.rxaui, str_format="{0}\n[{2} {1}]")
+	
+	def update_shape_from_tty(self):
+		if self._tty:
+			if 'IN' == self._tty:
+				self.shape = 'polygon,sides=5'
+			elif 'BN' == self._tty:
+				self.shape = 'polygon,sides=4,skew=.4'
 
 
 class RxNormCUI (object):
@@ -472,7 +504,7 @@ if '__main__' == __name__:
 	# examples
 	look = RxNormLookup()
 	code = '328406'
-	meaning = look.lookup_code_meaning(code, preferred=False)
+	meaning = look.lookup_rxcui_name(code, preferred=False)
 	dclass = look.find_va_drug_class(code)
 	fclasses = look.friendly_class_format(dclass)
 	print('RxNorm code      "{0}":  {1}'.format(code, meaning))

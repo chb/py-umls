@@ -11,13 +11,15 @@ import tempfile
 
 
 class GraphableObject (object):
+	identifier = None
 	_name = None
 	label = None
 	shape = None
 	style = None
 	color = None
 	
-	def __init__(self, name, label=None):
+	def __init__(self, identifier, name, label=None):
+		self.identifier = identifier
 		self._name = name
 		self.label = label
 	
@@ -56,7 +58,6 @@ class GraphableObject (object):
 		subclasses that hold on to other graphable objects MUST ANNOUNCE those
 		instances here (but NOT deliver them).
 		"""
-		print("delivering", self)
 		dot_context.deliver(self)
 	
 	def announce_to(self, dot_context):
@@ -74,7 +75,8 @@ class GraphableRelation (GraphableObject):
 	relation_to = None				# second GraphableObject instance
 	
 	def __init__(self, rel_from, label, rel_to):
-		super().__init__(None, label)
+		identifier = "{}->{}".format(rel_from.identifier, rel_to.identifier)
+		super().__init__(identifier, None, label)
 		self.relation_from = rel_from
 		self.relation_to = rel_to
 	
@@ -100,18 +102,22 @@ class GraphableRelation (GraphableObject):
 class DotContext (object):
 	items = None
 	source = None
+	depth = 0
+	max_depth = 0
 	
-	def __init__(self):
+	def __init__(self, max_depth=8):
 		self.items = set()
 		self.source = ''
-	
-	def has(self, obj):
-		return obj in self.items
+		self.depth = 0
+		self.max_depth = max_depth
 	
 	def announce(self, obj):
-		if obj not in self.items:
-			self.items.add(obj)
-			obj.deliver_to(self)
+		if obj.identifier not in self.items:
+			self.items.add(obj.identifier)
+			if self.depth < self.max_depth:
+				self.depth += 1
+				obj.deliver_to(self)
+				self.depth -= 1
 	
 	def deliver(self, obj):
 		self.source += obj.dot_representation()
@@ -128,7 +134,7 @@ class GraphvizGraphic (object):
 	def __init__(self, outfile):
 		self.out_file = outfile
 	
-	def command(self, infile):
+	def executableCommand(self, infile):
 		return [
 			self.cmd,
 			'-T{}'.format(self.out_type),
@@ -150,9 +156,9 @@ class GraphvizGraphic (object):
 		with os.fdopen(filedesc, 'w') as handle:
 			handle.write(source)
 			
-			cmd = self.command(tmpname)
+			cmd = self.executableCommand(tmpname)
 			ret = subprocess.call(cmd)
-			print(cmd)
+			print(' '.join(cmd))
 			print("ret", ret)
 			#os.unlink(tmpname)
 			if ret > 0:
