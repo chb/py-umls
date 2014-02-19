@@ -64,6 +64,7 @@ class RxNormLookup (object):
 			found.append(res)
 		
 		if 0 == len(found):
+			raise Exception("RXCUI {} not found".format(rxcui))
 			return None
 		
 		if preferred:
@@ -138,7 +139,7 @@ class RxNormLookup (object):
 		
 		return ttys
 	
-	def lookup_related(self, rxcui, relation=None):
+	def lookup_related(self, rxcui, relation=None, to_rxcui=None):
 		""" Returns a set of tuples containing the RXCUI and the actual relation
 		for the desired relation, or all if the relation is not specified.
 		"""
@@ -150,8 +151,12 @@ class RxNormLookup (object):
 			sql = "SELECT rxcui1, rela FROM rxnrel WHERE rxcui2 = ? AND rela = ?"
 			for res in self.sqlite.execute(sql, (rxcui, relation)):
 				found.add(res)
+		elif to_rxcui is not None:
+			sql = "SELECT rxcui1, rela FROM rxnrel WHERE rxcui2 = ? AND rxcui1 = ?"
+			for res in self.sqlite.execute(sql, (rxcui, to_rxcui)):
+				found.add(res)
 		else:
-			sql = "SELECT rxcui1, rela FROM rxnrel WHERE rxcui2 = ? AND rela IS NOT 'inverse_isa'"
+			sql = "SELECT rxcui1, rela FROM rxnrel WHERE rxcui2 = ?"
 			for res in self.sqlite.execute(sql, (rxcui,)):
 				found.add(res)
 		
@@ -203,7 +208,7 @@ class RxNormLookup (object):
 		return popular.popitem(False)[0]
 
 
-	# -------------------------------------------------------------------------- Drug Class
+	# -------------------------------------------------------------------------- Drug Class OBSOLETE, WILL BE GONE
 	def prepare_to_cache_classes(self):
 		if self.sqlite.create('drug_class_cache', '(rxcui primary key, rxcui_orig int, VA varchar)'):
 			self.cache_drug_class = True
@@ -418,25 +423,44 @@ class RxNormCUI (GraphableObject):
 		self.update_shape_from_tty()
 	
 	
-	def find_relations(self):
+	def find_relations(self, to_rxcui=None):
+		counted = {}
+		for rxcui, rela in self.rxlookup.lookup_related(self.rxcui, None, to_rxcui):
+			if rela in counted:
+				counted[rela].append(rxcui)
+			else:
+				counted[rela] = [rxcui]
+		
 		found = []
-		for rxcui, rela in self.rxlookup.lookup_related(self.rxcui):
-			obj = RxNormCUI(rxcui)
-			rel = RxNormConceptRelation(self, rela, obj)
+		for rela, items in sorted(counted.items()):		# sort to generate mostly consistent dot files
+			if len(items) > 10:
+				proxy = GraphableObject(None, rela)
+				rel = GraphableRelation(self, str(len(items)), proxy)
+			else:
+				for rxcui in sorted(items):				# sort to generate mostly consistent dot files
+					obj = RxNormCUI(rxcui)
+					rel = RxNormConceptRelation(self, rela, obj)
 			found.append(rel)
 		
-		self.relations = found
+		return found
 	
-	def deliver_to(self, dot_context):
-		self.update_self_from_rxcui()		
-		super().deliver_to(dot_context)
 	
-	def announce_relations_to(self, dot_context):
-		if self.relations is None:
-			self.find_relations()
+	def deliver_to(self, dot_context, is_leaf):
+		self.update_self_from_rxcui()
+		super().deliver_to(dot_context, is_leaf)
 		
-		for rel in self.relations:
-			rel.announce_to(dot_context)
+		# if we are a leaf, still fetch the relation going back to our announcer
+		if is_leaf:
+			if self.relations is None and self.announced_via:
+				rela = self.find_relations(self.announced_via.rxcui1.rxcui)
+				if rela:
+					rela[0].announce_to(dot_context)
+		else:
+			if self.relations is None:
+				self.relations = self.find_relations()
+			
+			for rel in self.relations:
+				rel.announce_to(dot_context)
 	
 	
 	def update_self_from_rxcui(self):

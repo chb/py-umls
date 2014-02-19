@@ -6,31 +6,26 @@
 #	2014-02-18	Created by Pascal Pfiffner
 
 import os
+import uuid
 import subprocess
 import tempfile
 
 
 class GraphableObject (object):
-	identifier = None
-	_name = None
-	label = None
+	_name = None		# The name uniquely identifying the object
+	label = None		# The label to show in place of the name
 	shape = None
 	style = None
 	color = None
+	announced_via = None
 	
-	def __init__(self, identifier, name, label=None):
-		self.identifier = identifier
-		self._name = name
+	def __init__(self, name, label=None):
+		self._name = name if name else 'o' + uuid.uuid4().hex
 		self.label = label
 	
 	@property
 	def name(self):
 		return self._name if self._name else 'unnamed'
-	
-	def should_announce(self):
-		if self.label or self.style or self.color or self.shape:
-			return True
-		return False
 	
 	def inner_dot(self):
 		if self.label or self.style or self.color or self.shape:
@@ -52,27 +47,26 @@ class GraphableObject (object):
 			return "\t{} {};\n".format(self.name, inner)
 		return "\t{};\n".format(self.name)
 	
-	def deliver_to(self, dot_context):
+	def announce_to(self, dot_context, via=None):
+		""" Announce the receiver to the context.
+		Subclasses MUST NOT announce other graphable objects they are holding
+		on to here but they MUST announce them in "deliver_to" if appropriate.
+		- dot_context The context to announce to
+		- via If not-None the other GraphableObject that is responsible for
+		  announcing the receiver
+		"""
+		self.announced_via = via
+		dot_context.announce(self)
+	
+	def deliver_to(self, dot_context, is_leaf):
 		""" Call the context's "deliver" method.
 		This method is guaranteed to only be called once per context. Hence
 		subclasses that hold on to other graphable objects MUST ANNOUNCE those
-		instances here (but NOT deliver them).
+		instances here (but NOT deliver them) but ONLY IF "is_leaf" is not True.
+		- dot_context The context to deliver to
+		- is_leaf If True means the receiver is intended to be a leaf object
 		"""
 		dot_context.deliver(self)
-	
-	def announce_to(self, dot_context):
-		""" Announce to the context if we need to declare properties.
-		Subclasses MUST NOT announce other graphable objects they are holding
-		on to here but they MUST announce them in "announce_relations_to"
-		if they want them to be exported to the context at one point.
-		"""
-		if self.should_announce():
-			dot_context.announce(self)
-	
-	def announce_relations_to(self, dot_context):
-		""" Announce any relations the receiver may have. This is called by the
-		context if it desires the receiver's relations. """
-		pass
 
 
 class GraphableRelation (GraphableObject):
@@ -80,13 +74,10 @@ class GraphableRelation (GraphableObject):
 	relation_to = None				# second GraphableObject instance
 	
 	def __init__(self, rel_from, label, rel_to):
-		identifier = "{}->{}".format(rel_from.identifier, rel_to.identifier)
-		super().__init__(identifier, None, label)
+		name = "{}->{}".format(rel_from.name, rel_to.name)
+		super().__init__(name, label)
 		self.relation_from = rel_from
 		self.relation_to = rel_to
-	
-	def should_announce(self):
-		return self.relation_from and self.relation_to
 	
 	def dot_representation(self):
 		if self.relation_to:
@@ -95,19 +86,19 @@ class GraphableRelation (GraphableObject):
 				self.relation_to.name,
 				self.inner_dot() or ''
 			)
-		
 		return ''
 	
-	def announce_relations_to(self, dot_context):
-		self.relation_from.announce_to(dot_context)
-		self.relation_to.announce_to(dot_context)
+	def deliver_to(self, dot_context, is_leaf):
+		self.relation_from.announce_to(dot_context, self)
+		self.relation_to.announce_to(dot_context, self)
+		super().deliver_to(dot_context, is_leaf)		# deliver after announcing our nodes!
 
 
 class DotContext (object):
 	items = None
 	source = None
 	depth = 0
-	max_depth = 4		# this is not quite working correctly I think...
+	max_depth = 8		# there is something fishy still, make this double the tree depth you want
 	
 	def __init__(self, max_depth=None):
 		self.items = set()
@@ -117,14 +108,12 @@ class DotContext (object):
 			self.max_depth = max_depth
 	
 	def announce(self, obj):
-		if obj.identifier not in self.items:
-			self.items.add(obj.identifier)
+		if obj.name not in self.items:
+			self.items.add(obj.name)
 			
-			obj.deliver_to(self)
-			if self.depth < self.max_depth:
-				self.depth += 1
-				obj.announce_relations_to(self)
-				self.depth -= 1
+			self.depth += 1
+			obj.deliver_to(self, self.depth > self.max_depth)
+			self.depth -= 1
 	
 	def deliver(self, obj):
 		self.source += obj.dot_representation()
@@ -157,8 +146,7 @@ class GraphvizGraphic (object):
 		dot = context.get()
 		
 		source = """digraph G {{
-	ranksep=equally;
-	{}}}\n""".format(dot)
+	ranksep=equally;\n{}}}\n""".format(dot)
 		
 		# write to a temporary file
 		filedesc, tmpname = tempfile.mkstemp()
