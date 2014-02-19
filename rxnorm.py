@@ -13,6 +13,7 @@ import logging
 import re
 from collections import Counter, OrderedDict
 from sqlite import SQLite
+from graphable import GraphableObject, GraphableRelation
 
 
 class RxNorm (object):
@@ -109,6 +110,16 @@ class RxNormLookup (object):
 		
 		return ttys
 	
+	def lookup_tty_rxaui(self, rxaui):
+		""" Returns a set of TTYs for the given RXAUI. """
+		if rxaui is None:
+			return None
+		
+		sql = 'SELECT tty FROM rxnconso WHERE rxaui = ?'
+		res = self.sqlite.executeOne(sql, (rxaui,))
+		
+		return res[0] if res else None
+	
 	def lookup_related(self, rxcui, relation=None):
 		""" Returns a set of tuples containing the RXCUI and the actual relation
 		for the desired relation, or all if the relation is not specified.
@@ -124,6 +135,31 @@ class RxNormLookup (object):
 		else:
 			sql = "SELECT RXCUI2, RELA FROM RXNREL WHERE RXCUI1 = ?"
 			for res in self.sqlite.execute(sql, (rxcui,)):
+				found.add(res)
+		
+		return found
+	
+	def lookup_related_rxaui(self, rxaui, relations=None):
+		""" Returns a tuple of RXAUIs and the actual relation which relate to
+		the receiver's RXAUI, limited to the given relations, or any if
+		"relations" is None.
+		- rxaui The rxaui of the object to look up
+		- relations A list of "rela" names to limit to
+		"""
+		if rxaui is None:
+			return None
+		
+		found = set()
+		if relations is not None and len(relations) > 0:
+			place = ', '.join(['?' for x in range(0, len(relations))])
+			sql = "SELECT rxaui2, rela FROM rxnrel WHERE rxaui1 = ? AND rela IN ({})".format(place)
+			params = [rxaui]
+			params.extend(relations)
+			for res in self.sqlite.execute(sql, params):
+				found.add(res)
+		else:
+			sql = "SELECT rxaui2, rela FROM RXNREL WHERE rxaui1 = ?"
+			for res in self.sqlite.execute(sql, (rxaui,)):
 				found.add(res)
 		
 		return found
@@ -366,6 +402,67 @@ class RxNormLookup (object):
 	def fetchAll(self, sql, params=()):
 		""" Execute and return the result of fetchall() on a raw SQL query. """
 		return self.sqlite.execute(sql, params).fetchall()
+
+
+class RxNormAUI (GraphableObject):
+	rxaui = None
+	tty = None
+	relations = None
+	
+	def __init__(self, rxaui, label=None):
+		super().__init__(rxaui)
+		self.shape = 'box'
+		self.rxaui = rxaui
+	
+	def find_relations(self):
+		look = RxNormLookup()
+		if self.tty is None:
+			self.tty = look.lookup_tty_rxaui(self.rxaui)
+			self.label = "{} [{}]".format(self.name, self.tty)
+		
+		mapping = {
+			'BN': ['has_ingredient'],
+			'BD': []
+		}
+		
+		rels = mapping.get(self.tty)
+		found = []
+		
+		# only get relations if we know which ones to prevent a large network
+		if rels and len(rels) > 0:
+			for rxaui, rela in look.lookup_related_rxaui(self.rxaui, rels):
+				obj = RxNormAUI(rxaui)
+				rel = RxNormRelation(self, rela, obj)
+				found.append(rel)
+		
+		self.relations = found
+	
+	def deliver_to(self, dot_context):
+		if self.relations is None:
+			self.find_relations()
+		
+		super().deliver_to(dot_context)
+		
+		for rel in self.relations:
+			rel.announce_to(dot_context)
+
+
+class RxNormCUI (object):
+	rxcui = None
+	atoms = None
+	
+	def __init__(self, rxcui):
+		self.rxcui = rxcui
+
+
+class RxNormRelation (GraphableRelation):
+	rxaui1 = None
+	rxaui2 = None
+	
+	def __init__(self, rxauiobj1, rela, rxauiobj2):
+		super().__init__(rxauiobj1, rela, rxauiobj2)
+		self.rxaui1 = rxauiobj1
+		self.rxaui2 = rxauiobj2
 
 
 # running this as a script does the database setup/check
