@@ -50,8 +50,8 @@ class RxNormLookup (object):
 	
 	# -------------------------------------------------------------------------- "name" lookup
 	def lookup_rxcui(self, rxcui, preferred=True):
-		""" Return a tuple with (str, tty, rxcui, rxaui) or a list of tuples if
-		"preferred" is False.
+		""" Return a tuple with (str, tty, rxcui, rxaui) or - if "preferred" is
+		False - a tuple with (preferred-name, list-of-tuples)
 		"""
 		if rxcui is None or len(rxcui) < 1:
 			return ''
@@ -67,14 +67,20 @@ class RxNormLookup (object):
 			raise Exception("RXCUI {} not found".format(rxcui))
 			return None
 		
-		if preferred:
-			for tty in ['BN', 'IN', 'PIN', 'SBDC', 'SCDC', 'SBD', 'SCD', 'MIN']:
-				for res in found:
-					if tty == res[1]:
-						return res
-			return found[0]
+		# preferred name
+		pref_match = None
+		for tty in ['SBDC', 'SCDC', 'SBD', 'SCD', 'CD', 'BN', 'IN', 'PIN', 'MIN']:
+			for res in found:
+				if tty == res[1]:
+					pref_match = res
+					break
+			if pref_match is not None:
+				break
 		
-		return found
+		if preferred:
+			return pref_match if pref_match is not None else found[0]
+		
+		return (pref_match[0] if pref_match is not None else None, found)
 	
 	def lookup_rxcui_name(self, rxcui, preferred=True, no_html=True):
 		""" Return a string or HTML for the meaning of the given code.
@@ -404,7 +410,7 @@ class RxNormLookup (object):
 
 class RxNormCUI (GraphableObject):
 	rxcui = None
-	_tty = None
+	_ttys = None
 	relations = None
 	rxlookup = RxNormLookup()
 	
@@ -414,13 +420,13 @@ class RxNormCUI (GraphableObject):
 		self.rxcui = rxcui
 	
 	@property
-	def tty(self):
-		return self._tty
+	def ttys(self):
+		return self._ttys
 	
-	@tty.setter
-	def tty(self, val):
-		self._tty = val
-		self.update_shape_from_tty()
+	@ttys.setter
+	def ttys(self, val):
+		self._ttys = val
+		self.update_shape_from_ttys()
 	
 	
 	def find_relations(self, to_rxcui=None, max_width=10):
@@ -474,20 +480,28 @@ class RxNormCUI (GraphableObject):
 	
 	def update_self_from_rxcui(self):
 		if self.rxcui:
-			res = self.rxlookup.lookup_rxcui(self.rxcui)
-			self.label = "{0}\n[{2} {1}]".format(*res)
-			self.tty = res[1]
+			pref, found = self.rxlookup.lookup_rxcui(self.rxcui, preferred=False)
+			if found is not None and len(found) > 0:
+				self.ttys = set([res[1] for res in found])
+				self.label = pref if pref else found[0][0]
+				self.label += "\n[{} - {}]".format(self.rxcui, ', '.join(self._ttys))
+			
+			va = self.rxlookup._lookup_cached_va_drug_class(self.rxcui)
+			if va:
+				self.style = 'bold'
+				self.color = 'violet'
+				self.label += "\n{}".format(va)
 	
-	def update_shape_from_tty(self):
-		if self._tty:
-			if 'IN' == self._tty[-2:]:
-				self.shape = 'polygon,sides=5'
-				if 'MIN' == self._tty:
-					self.shape += ',peripheries=2'
-			elif 'BD' == self._tty or 'BN' == self._tty:
+	def update_shape_from_ttys(self):
+		if self._ttys:
+			if 'BD' in self._ttys or 'BN' in self._ttys:
 				self.shape = 'polygon,sides=4,skew=.4'
-			elif 'SCD' == self._tty[:3]:
+			elif 'SBD' in [tty[:3] for tty in self._ttys]:
 				self.shape = 'box,peripheries=2'
+			elif 'MIN' in self._ttys:
+				self.shape = 'polygon,sides=5,peripheries=2'
+			elif 'IN' in self._ttys or 'PIN' in self._ttys:
+				self.shape = 'polygon,sides=5'
 
 class RxNormConceptRelation (GraphableRelation):
 	rxcui1 = None
