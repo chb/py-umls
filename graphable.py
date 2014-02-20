@@ -99,13 +99,16 @@ class DotContext (object):
 	source = None
 	depth = 0
 	max_depth = 8		# there is something fishy still, make this double the tree depth you want
+	max_width = 15		# pass to graphable objects, they will decide what to do with this
 	
-	def __init__(self, max_depth=None):
+	def __init__(self, max_depth=None, max_width=None):
 		self.items = set()
 		self.source = ''
 		self.depth = 0
 		if max_depth is not None:
 			self.max_depth = max_depth
+		if max_width is not None:
+			self.max_width = max_width
 	
 	def announce(self, obj):
 		if obj.name not in self.items:
@@ -127,6 +130,8 @@ class GraphvizGraphic (object):
 	out_dot = None
 	out_type = 'png'
 	out_file = None
+	max_depth = None
+	max_width = None
 	
 	def __init__(self, out_file='rxgraph.png'):
 		self.out_file = out_file
@@ -143,7 +148,7 @@ class GraphvizGraphic (object):
 		if self.out_file is None:
 			raise Exception('Please assign an output filename to "out_file"')
 		
-		context = DotContext()
+		context = DotContext(max_depth=self.max_depth, max_width=self.max_width)
 		obj.announce_to(context)
 		source = """digraph G {{
 	ranksep=equally;\n{}}}\n""".format(context.get())

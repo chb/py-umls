@@ -22,6 +22,9 @@ if '__main__' == __name__:
 	rx = RxNormCUI(rxcui)
 	gv = GraphvizGraphic('rxgraph.png')
 	gv.out_dot = 'rxgraph.dot'
+	gv.max_depth = 8
+	gv.max_width = 15
+	
 	gv.write_dot_graph(rx)
 	
 	print('->  DOT file:   {}'.format(gv.out_dot))

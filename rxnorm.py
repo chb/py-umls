@@ -423,7 +423,7 @@ class RxNormCUI (GraphableObject):
 		self.update_shape_from_tty()
 	
 	
-	def find_relations(self, to_rxcui=None):
+	def find_relations(self, to_rxcui=None, max_width=10):
 		counted = {}
 		for rxcui, rela in self.rxlookup.lookup_related(self.rxcui, None, to_rxcui):
 			if rela in counted:
@@ -433,9 +433,15 @@ class RxNormCUI (GraphableObject):
 		
 		found = []
 		for rela, items in sorted(counted.items()):		# sort to generate mostly consistent dot files
-			if len(items) > 10:
+			if len(items) > max_width:
 				proxy = GraphableObject(None, rela)
 				rel = GraphableRelation(self, str(len(items)), proxy)
+				
+				if self.announced_via:					# if our announcer is here, be nice and link back
+					for rxcui in items:
+						if rxcui == self.announced_via.rxcui1.rxcui:
+							via = RxNormCUI(rxcui)
+							found.append(RxNormConceptRelation(self, rela, via))
 			else:
 				for rxcui in sorted(items):				# sort to generate mostly consistent dot files
 					obj = RxNormCUI(rxcui)
@@ -452,12 +458,15 @@ class RxNormCUI (GraphableObject):
 		# if we are a leaf, still fetch the relation going back to our announcer
 		if is_leaf:
 			if self.relations is None and self.announced_via:
-				rela = self.find_relations(self.announced_via.rxcui1.rxcui)
+				rela = self.find_relations(
+					to_rxcui=self.announced_via.rxcui1.rxcui,
+					max_width=dot_context.max_width
+				)
 				if rela:
 					rela[0].announce_to(dot_context)
 		else:
 			if self.relations is None:
-				self.relations = self.find_relations()
+				self.relations = self.find_relations(max_width=dot_context.max_width)
 			
 			for rel in self.relations:
 				rel.announce_to(dot_context)
@@ -488,6 +497,9 @@ class RxNormConceptRelation (GraphableRelation):
 		super().__init__(rxcuiobj1, rela, rxcuiobj2)
 		self.rxcui1 = rxcuiobj1
 		self.rxcui2 = rxcuiobj2
+		
+		if 'isa' == rela[-3:]:
+			self.style = 'dashed'
 
 
 # running this as a script does the database setup/check
