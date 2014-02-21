@@ -9,6 +9,7 @@
 #	For profiling: pycallgraph graphviz -- rxnorm-link.py
 
 import sys
+import json
 import signal
 import logging
 import couchbase
@@ -120,6 +121,127 @@ def toIngredients_helper(rxcui, tty):
 	return []
 
 
+def initVA(rxhandle):
+	# SELECT DISTINCT tty, COUNT(tty) FROM rxnsat LEFT JOIN rxnconso AS r USING (rxcui) WHERE atn = "VA_CLASS_NAME" GROUP BY tty;
+	rxhandle.execute('DROP TABLE IF EXISTS va_cache')
+	rxhandle.execute('''CREATE TABLE va_cache
+						(rxcui varchar UNIQUE, va text, level int)''')
+	rxhandle.execute('''INSERT OR IGNORE INTO va_cache
+						SELECT rxcui, atv, 0 FROM rxnsat
+						WHERE atn = "VA_CLASS_NAME"''')
+	rxhandle.sqlite.commit()
+
+def traverseVA(rxhandle, rounds=3, expect=203175):
+	""" Drug classes are set for a couple of different TTYs, it seems however
+	most consistently to be defined on CD, SCD and AB TTYs.
+	We cache the classes in va_cache and loop over rxcuis with known classes,
+	applying the known classes to certain relationships.
+	"""
+	print("->  Starting VA class mapping")
+	
+	mapping = {
+		'CD': [
+			'has_tradename',			# > BD, SDB, ...
+			'contained_in',				# > BPCK
+			'consists_of',				# > SCDC
+			'quantified_form',			# > SBD
+		],
+		'GPCK': [
+			'has_tradename',			# > BPCK
+		],
+		
+		'SBD': [
+			'isa',						# > SBDG
+			'has_ingredient',			# > BN
+			'tradename_of',				# > SCD
+			'consists_of',				# > SBDC
+		],
+		'SBDF': [
+			'tradename_of',				# > SCDF
+			'has_ingredient',
+		],
+		'SBDG': [
+			'has_ingredient',			# > BN
+			'tradename_of',				# > SCDG
+		],
+		
+		'SCD': [
+			'isa',						# > SCDF
+			'has_quantified_form',		# > SCD
+			'contained_in',				# > GPCK
+			'has_tradename',			# > SBD
+		],
+		'SCDC': [
+			'constitutes',				# > SCD
+			'has_tradename',			# > SBDC
+		],
+		'SCDF': [
+			'inverse_isa',				# > SCD
+		],
+		'SCDG': [
+			'tradename_of',				# > SBDG
+		]
+	}
+	
+	found = set()
+	ex_sql = 'SELECT rxcui, va FROM va_cache WHERE level = ?'
+	
+	for l in range(0,rounds):
+		i = 0
+		existing = rxhandle.fetchAll(ex_sql, (l,))
+		num_drugs = len(existing)
+		
+		# loop all rxcuis that already have a class and walk their relationships
+		for rxcui, va_imp in existing:
+			found.add(rxcui)
+			vas = va_imp.split('|')
+			walkVAs(rxcui, vas, mapping, l)
+			
+			# progress report
+			i += 1
+			print('->  {}  {:.0%}'.format(l+1, i / num_drugs), end="\r")
+		
+		# commit after every round
+		rxhandle.sqlite.commit()
+		print('=>  {}  Found classes for {} of {} drugs ({:.1%})'.format(l+1, len(found), expect, len(found) / expect))
+	
+	print('->  VA class mapping complete')
+
+def walkVAs(rxcui, vas, mapping, at_level=0):
+	assert rxcui
+	assert len(vas) > 0
+	
+	# get all possible relas for the given rxcui
+	ttys = rxhandle.lookup_tty(rxcui)
+	relas = set()
+	for tty in ttys:
+		if tty in mapping:
+			relas.update(mapping[tty])
+	
+	# get all related rxcuis with the possible "rela" value(s)
+	rel_fmt = ', '.join(['?' for r in relas])
+	rel_sql = '''SELECT DISTINCT rxcui1 FROM rxnrel
+				 WHERE rxcui2 = ? AND rela IN ({})'''.format(rel_fmt)
+	rel_params = [rxcui]
+	rel_params.extend(relas)
+	
+	exist_sql = 'SELECT va FROM va_cache WHERE rxcui = ?'
+	
+	for rel_rxcui in doQ(rel_sql, rel_params):
+		storeVAs(rel_rxcui, vas, at_level+1)
+
+def storeVAs(rxcui, vas, level=0):
+	assert rxcui
+	assert len(vas) > 0
+	ins_sql = 'INSERT OR REPLACE INTO va_cache (rxcui, va, level) VALUES (?, ?, ?)'
+	ins_val = '|'.join(vas)
+	rxhandle.execute(ins_sql, (rxcui, ins_val, level))
+
+def toDrugClasses(rxhandle, rxcui):
+	sql = 'SELECT va FROM va_cache WHERE rxcui = ?'
+	res = rxhandle.fetchOne(sql, (rxcui,))
+	return res[0].split('|') if res is not None else []
+
 
 if '__main__' == __name__:
 	logging.basicConfig(level=logging.INFO)
@@ -135,46 +257,51 @@ if '__main__' == __name__:
 	rxhandle = RxNormLookup()
 	rxhandle.prepare_to_cache_classes()
 	
-	# prepare some SQL
-	# drug_types = ('SCD', 'SCDC', 'SBDG', 'SBD')
-	drug_types = ('SCD', 'SCDC', 'SBDG', 'SBD', 'SBDC', 'BN', 'SBDF', 'SCDG', 'SCDF', 'IN', 'MIN', 'PIN', 'BPCK', 'GPCK')
-	param = ', '.join(['?' for x in range(0, len(drug_types))])
-	all_sql = "SELECT RXCUI, TTY from RXNCONSO where SAB='RXNORM' and TTY in ({})".format(param)
-	label_sql = "SELECT STR from RXNCONSO where RXCUI=? and SAB='RXNORM' and TTY in ({})".format(param)
-	
 	# prepare Couchbase
 	try:
-		cb = couchbase.Couchbase.connect(bucket='rxnorm')
+		# cb = couchbase.Couchbase.connect(bucket='rxnorm')
+		cb = None
 	except Exception as e:
 		logging.error(e)
 		sys.exit(1)
 	
 	fmt = couchbase.FMT_JSON
 	
-	# loop all drugs
+	# fetch rxcui's of certain TTYs
+	drug_types = ('SCD', 'SCDC', 'SBDG', 'SBD', 'SBDC', 'BN', 'SBDF', 'SCDG', 'SCDF', 'IN', 'MIN', 'PIN', 'BPCK', 'GPCK')
+	param = ', '.join(['?' for d in drug_types])
+	all_sql = "SELECT RXCUI, TTY from RXNCONSO where SAB='RXNORM' and TTY in ({})".format(param)
+	
 	all_drugs = rxhandle.fetchAll(all_sql, drug_types)
 	num_drugs = len(all_drugs)
-	print('->  Indexing {} items'.format(num_drugs))
 	
+	# traverse VA classes
+	initVA(rxhandle)
+	traverseVA(rxhandle, rounds=5, expect=num_drugs)
+	#sys.exit(0)
+	
+	# loop all
 	i = 0
 	w_ti = 0
 	w_va = 0
 	w_either = 0
 	last_report = datetime.now()
+	print('->  Indexing {} items'.format(num_drugs))
+	
 	for res in all_drugs:
 		ingr = toIngredients([res[0]], res[1])
 		
 		params = [res[0]]
 		params.extend(drug_types)
-		label = rxhandle.execute(label_sql, params).fetchone()[0]
+		label = rxhandle.lookup_rxcui_name(res[0])
 		
 		ti = toTreatmentIntents(ingr, 'IN')
-		va = rxhandle.find_va_drug_class(res[0], until_found=True)
+		va = toDrugClasses(rxhandle, res[0])
 		if len(ti) > 0:
 			w_ti += 1
-		if va is not None:
+		if len(va) > 0:
 			w_va += 1
-		if va is not None or len(ti) > 0:
+		if len(ti) > 0 or len(va) > 0:
 			w_either += 1
 		
 		# create JSON document and insert
@@ -187,19 +314,19 @@ if '__main__' == __name__:
 			'components': list(toComponents([res[0]], res[1])),
 		#   'mechanisms': list(toMechanism(ingr, 'IN')),
 			'treatmentIntents': list(ti),
-			'va_class': va
+			'va_classes': list(va)
 		}
 		
 		# insert into Couchbase (using .set() will overwrite existing documents)
 		# print(json.dumps(d, sort_keys=True, indent=2))
-		cb.set(res[0], d, format=fmt)
+		#cb.set(res[0], d, format=fmt)
 		i += 1
 		
 		# inform every 5 seconds or so
 		if (datetime.now() - last_report).seconds > 5:
 			last_report = datetime.now()
-			print('->  {:.3%}   n: {}, ti: {}, va: {}, either: {}'.format(i / num_drugs, i, w_ti, w_va, w_either), end="\r")
+			print('->  {:.1%}   n: {}, ti: {}, va: {}, either: {}'.format(i / num_drugs, i, w_ti, w_va, w_either), end="\r")
 	
-	print('->  {:.3%}   n: {}, ti: {}, va: {}, either: {}'.format(i / num_drugs, i, w_ti, w_va, w_either))
+	print('->  {:.2%}   n: {}, ti: {}, va: {}, either: {}'.format(i / num_drugs, i, w_ti, w_va, w_either))
 	print('=>  Done')
 
