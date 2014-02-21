@@ -259,8 +259,7 @@ if '__main__' == __name__:
 	
 	# prepare Couchbase
 	try:
-		# cb = couchbase.Couchbase.connect(bucket='rxnorm')
-		cb = None
+		cb = couchbase.Couchbase.connect(bucket='rxnorm')
 	except Exception as e:
 		logging.error(e)
 		sys.exit(1)
@@ -319,7 +318,7 @@ if '__main__' == __name__:
 		
 		# insert into Couchbase (using .set() will overwrite existing documents)
 		# print(json.dumps(d, sort_keys=True, indent=2))
-		#cb.set(res[0], d, format=fmt)
+		cb.set(res[0], d, format=fmt)
 		i += 1
 		
 		# inform every 5 seconds or so
