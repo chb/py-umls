@@ -20,7 +20,7 @@ if '__main__' == __name__:
 		sys.exit(0)
 	
 	rx = RxNormCUI(rxcui)
-	gv = GraphvizGraphic('rxgraph.png')
+	gv = GraphvizGraphic('rxgraph.pdf')
 	gv.out_dot = 'rxgraph.dot'
 	gv.max_depth = 8
 	gv.max_width = 15

@@ -128,7 +128,7 @@ class DotContext (object):
 class GraphvizGraphic (object):
 	cmd = 'dot'
 	out_dot = None
-	out_type = 'png'
+	out_type = 'pdf'
 	out_file = None
 	max_depth = None
 	max_width = None

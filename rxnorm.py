@@ -216,7 +216,7 @@ class RxNormLookup (object):
 
 	# -------------------------------------------------------------------------- Drug Class OBSOLETE, WILL BE GONE
 	def prepare_to_cache_classes(self):
-		if self.sqlite.create('drug_class_cache', '(rxcui primary key, rxcui_orig int, VA varchar)'):
+		if self.sqlite.create('va_cache', '(rxcui primary key, va varchar)'):
 			self.cache_drug_class = True
 	
 	
@@ -316,7 +316,7 @@ class RxNormLookup (object):
 	
 	
 	def _lookup_cached_va_drug_class(self, rxcui):
-		""" Returns the VA class name (the first one found) for a given RXCUI.
+		""" Returns a list of VA class names for a given RXCUI. EXPERIMENTAL.
 		"""
 		if not self.cache_drug_class:
 			return None		
@@ -324,9 +324,9 @@ class RxNormLookup (object):
 			return None
 		
 		# check dedicated dable
-		sql = 'SELECT VA FROM drug_class_cache WHERE rxcui = ?'
+		sql = 'SELECT va FROM va_cache WHERE rxcui = ?'
 		res = self.sqlite.executeOne(sql, (rxcui,))
-		return res[0] if res else None
+		return res[0].split('|') if res else None
 
 	def _cache_va_drug_class(self, rxcui, original_rxcui, va_class):
 		""" Caches the given va_class as drug class for rxcui.
@@ -402,6 +402,10 @@ class RxNormLookup (object):
 	def execute(self, sql, params=()):
 		""" Execute and return the pointer of an SQLite execute() query. """
 		return self.sqlite.execute(sql, params)
+	
+	def fetchOne(self, sql, params=()):
+		""" Execute and return the result of fetchone() on a raw SQL query. """
+		return self.sqlite.execute(sql, params).fetchone()
 	
 	def fetchAll(self, sql, params=()):
 		""" Execute and return the result of fetchall() on a raw SQL query. """
@@ -483,19 +487,19 @@ class RxNormCUI (GraphableObject):
 			pref, found = self.rxlookup.lookup_rxcui(self.rxcui, preferred=False)
 			if found is not None and len(found) > 0:
 				self.ttys = set([res[1] for res in found])
-				self.label = pref if pref else found[0][0]
-				self.label += "\n[{} - {}]".format(self.rxcui, ', '.join(self._ttys))
+				self.label = _splitted_string(pref if pref else found[0][0])
+				self.label += "\n[{} - {}]".format(self.rxcui, ', '.join(sorted(self._ttys)))
 			
-			va = self.rxlookup._lookup_cached_va_drug_class(self.rxcui)
-			if va:
+			vas = self.rxlookup._lookup_cached_va_drug_class(self.rxcui)
+			if vas:
 				self.style = 'bold'
 				self.color = 'violet'
-				self.label += "\n{}".format(va)
+				self.label += "\n{}".format(', '.join(vas))
 	
 	def update_shape_from_ttys(self):
 		if self._ttys:
 			if 'BD' in self._ttys or 'BN' in self._ttys:
-				self.shape = 'polygon,sides=4,skew=.4'
+				self.style = 'bold'
 			elif 'SBD' in [tty[:3] for tty in self._ttys]:
 				self.shape = 'box,peripheries=2'
 			elif 'MIN' in self._ttys:
@@ -514,6 +518,23 @@ class RxNormConceptRelation (GraphableRelation):
 		
 		if 'isa' == rela[-3:]:
 			self.style = 'dashed'
+
+
+def _splitted_string(string, maxlen=60):
+	if len(string) > maxlen:
+		at = 0
+		newstr = ''
+		for word in string.split():
+			if at > maxlen:
+				newstr += "\n"
+				at = 0
+			if at > 0:
+				newstr += ' '
+				at += 1
+			newstr += word
+			at += len(word)
+		return newstr
+	return string
 
 
 # running this as a script does the database setup/check
