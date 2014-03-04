@@ -100,6 +100,12 @@ class SQLite (object):
 		return self.cursor.fetchone()
 
 
+	def hasTable(self, table_name):
+		""" Returns whether the given table exists. """
+		sql = 'SELECT COUNT(*) FROM sqlite_master WHERE type="table" and name=?'
+		ret = self.executeOne(sql, (table_name,))
+		return True if ret and ret[0] > 0 else False
+	
 	def create(self, table_name, table_structure):
 		""" Executes a CREATE TABLE IF NOT EXISTS query with the given structure.
 		Input is NOT sanitized, watch it!

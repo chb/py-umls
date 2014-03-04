@@ -6,9 +6,12 @@
 #	2012-09-28	Created by Josh Mandel
 #	2014-02-10	Stolen by Pascal Pfiffner
 #
-#	For profiling: pycallgraph graphviz -- rxnorm-link.py
+#	For profiling: pycallgraph graphviz -- rxnorm_link.py
 
 import sys
+import os.path
+sys.path.insert(0, os.path.dirname(__file__))
+
 import json
 import signal
 import logging
@@ -18,74 +21,72 @@ from datetime import datetime
 from rxnorm import RxNorm, RxNormLookup
 
 
-rxhandle = None
-
-def doQ(q, p):
+def doQ(rxhandle, q, p):
 	return [x[0] for x in rxhandle.fetchAll(q, p)]
 
-def toBrandAndGeneric(rxcuis, tty):
+def toBrandAndGeneric(rxhandle, rxcuis, tty):
 	ret = set()
 	for rxcui in rxcuis:
-		ret.update(doQ("SELECT rxcui1 from rxnrel where rxcui2=? and rela='tradename_of'", (rxcui,)))
+		ret.update(doQ(rxhandle, "SELECT rxcui1 from rxnrel where rxcui2=? and rela='tradename_of'", (rxcui,)))
 	return ret
 
-def toComponents(rxcuis, tty):
+def toComponents(rxhandle, rxcuis, tty):
 	ret = set()
 
 	if tty not in ("SBD", "SCD"):
 		return ret
 
 	for rxcui in rxcuis:
-		cs = doQ("SELECT rxcui1 from rxnrel where rxcui2=? and rela='consists_of'", (rxcui,))
+		cs = doQ(rxhandle, "SELECT rxcui1 from rxnrel where rxcui2=? and rela='consists_of'", (rxcui,))
 		for c in cs:
-			ret.update(doQ("SELECT rxcui from rxnconso where rxcui=? and sab='RXNORM' and tty='SCDC'", (c,)))        
+			ret.update(doQ(rxhandle, "SELECT rxcui from rxnconso where rxcui=? and sab='RXNORM' and tty='SCDC'", (c,)))        
 
 	return ret
 
-def toTreatmentIntents(rxcuis, tty):
+def toTreatmentIntents(rxhandle, rxcuis, tty):
 	ret = set()
 	for rxcui in rxcuis:
-		ret.update(toTreatmentIntents_helper(rxcui, tty))
+		ret.update(toTreatmentIntents_helper(rxhandle, rxcui, tty))
 	return ret
 
-def toTreatmentIntents_helper(rxcui, tty):
+def toTreatmentIntents_helper(rxhandle, rxcui, tty):
 	assert tty=='IN'
 	ret = []
-	rxauis = doQ("SELECT rxaui from rxnconso where rxcui=? and tty='FN' and sab='NDFRT'", (rxcui,))
+	rxauis = doQ(rxhandle, "SELECT rxaui from rxnconso where rxcui=? and tty='FN' and sab='NDFRT'", (rxcui,))
 	for a in rxauis:
-		a1 = doQ("SELECT rxaui1 from rxnrel where rxaui2=? and rela='may_treat'", (a,))
+		a1 = doQ(rxhandle, "SELECT rxaui1 from rxnrel where rxaui2=? and rela='may_treat'", (a,))
 		if len(a1) > 0:
-			dz = doQ("SELECT str from rxnconso where rxaui=? and tty='FN' and sab='NDFRT'", (a1[0],))
+			dz = doQ(rxhandle, "SELECT str from rxnconso where rxaui=? and tty='FN' and sab='NDFRT'", (a1[0],))
 			dz = map(lambda x: x.replace(" [Disease/Finding]", ""), dz)
 			ret.extend(dz)
 	return ret
 
-def toMechanism(rxcuis, tty):
+def toMechanism(rxhandle, rxcuis, tty):
 	ret = set()
 	for v in rxcuis:
-		ret.update(toMechanism_helper(v, tty))
+		ret.update(toMechanism_helper(rxhandle, v, tty))
 	return ret
 
-def toMechanism_helper(rxcui, tty):
+def toMechanism_helper(rxhandle, rxcui, tty):
 	assert tty=='IN'
 	ret = set()
-	rxauis = doQ("SELECT rxaui from rxnconso where rxcui=? and tty='FN' and sab='NDFRT'", (rxcui,))
+	rxauis = doQ(rxhandle, "SELECT rxaui from rxnconso where rxcui=? and tty='FN' and sab='NDFRT'", (rxcui,))
 	for a in rxauis:
-		a1 = doQ("SELECT rxaui1 from rxnrel where rxaui2=? and rela='has_mechanism_of_action'", (a,))
+		a1 = doQ(rxhandle, "SELECT rxaui1 from rxnrel where rxaui2=? and rela='has_mechanism_of_action'", (a,))
 		if len(a1) > 0:
-			moa = doQ("SELECT str from rxnconso where rxaui=? and tty='FN' and sab='NDFRT'", (a1[0],))
+			moa = doQ(rxhandle, "SELECT str from rxnconso where rxaui=? and tty='FN' and sab='NDFRT'", (a1[0],))
 			moa = map(lambda x: x.replace(" [MoA]", ""), moa)
 			ret.update(moa)
 	return ret
 
 
-def toIngredients(rxcuis, tty):
+def toIngredients(rxhandle, rxcuis, tty):
 	ret = set()
 	for v in rxcuis:
-		ret.update(toIngredients_helper(v, tty))
+		ret.update(toIngredients_helper(rxhandle, v, tty))
 	return ret
 
-def toIngredients_helper(rxcui, tty):
+def toIngredients_helper(rxhandle, rxcui, tty):
 	if 'IN' == tty:
 		return []
 	
@@ -100,7 +101,7 @@ def toIngredients_helper(rxcui, tty):
 	}
 	
 	if tty in map_direct:
-		return doQ("SELECT rxcui1 from rxnrel where rxcui2=? and rela=?", (rxcui, map_direct[tty]))
+		return doQ(rxhandle, "SELECT rxcui1 from rxnrel where rxcui2=? and rela=?", (rxcui, map_direct[tty]))
 	
 	# indirect ingredient lookup
 	map_indirect = {
@@ -115,7 +116,7 @@ def toIngredients_helper(rxcui, tty):
 	
 	if tty in map_indirect:
 		val = map_indirect[tty]
-		return toIngredients(doQ("SELECT rxcui1 from rxnrel where rxcui2=? and rela=?", (rxcui, val[0])), val[1])
+		return toIngredients(rxhandle, doQ(rxhandle, "SELECT rxcui1 from rxnrel where rxcui2=? and rela=?", (rxcui, val[0])), val[1])
 	
 	logging.warn('TTY "{}" is not mapped, skipping ingredient lookup'.format(tty))
 	return []
@@ -195,7 +196,7 @@ def traverseVA(rxhandle, rounds=3, expect=203175):
 		for rxcui, va_imp in existing:
 			found.add(rxcui)
 			vas = va_imp.split('|')
-			walkVAs(rxcui, vas, mapping, l)
+			walkVAs(rxhandle, rxcui, vas, mapping, l)
 			
 			# progress report
 			i += 1
@@ -207,7 +208,7 @@ def traverseVA(rxhandle, rounds=3, expect=203175):
 	
 	print('->  VA class mapping complete')
 
-def walkVAs(rxcui, vas, mapping, at_level=0):
+def walkVAs(rxhandle, rxcui, vas, mapping, at_level=0):
 	assert rxcui
 	assert len(vas) > 0
 	
@@ -227,10 +228,10 @@ def walkVAs(rxcui, vas, mapping, at_level=0):
 	
 	exist_sql = 'SELECT va FROM va_cache WHERE rxcui = ?'
 	
-	for rel_rxcui in doQ(rel_sql, rel_params):
-		storeVAs(rel_rxcui, vas, at_level+1)
+	for rel_rxcui in doQ(rxhandle, rel_sql, rel_params):
+		storeVAs(rxhandle, rel_rxcui, vas, at_level+1)
 
-def storeVAs(rxcui, vas, level=0):
+def storeVAs(rxhandle, rxcui, vas, level=0):
 	assert rxcui
 	assert len(vas) > 0
 	ins_sql = 'INSERT OR REPLACE INTO va_cache (rxcui, va, level) VALUES (?, ?, ?)'
@@ -243,8 +244,7 @@ def toDrugClasses(rxhandle, rxcui):
 	return res[0].split('|') if res is not None else []
 
 
-if '__main__' == __name__:
-	logging.basicConfig(level=logging.INFO)
+def runImport(cb_host='localhost', cb_port=8091, cb_bucket='rxnorm'):
 	
 	# install keyboard interrupt handler
 	def signal_handler(signal, frame):
@@ -259,7 +259,11 @@ if '__main__' == __name__:
 	
 	# prepare Couchbase
 	try:
-		cb = couchbase.Couchbase.connect(bucket='rxnorm')
+		cb = couchbase.Couchbase.connect(
+			host=cb_host,
+			port=cb_port,
+			bucket=cb_bucket
+		)
 	except Exception as e:
 		logging.error(e)
 		sys.exit(1)
@@ -275,9 +279,9 @@ if '__main__' == __name__:
 	num_drugs = len(all_drugs)
 	
 	# traverse VA classes
-	initVA(rxhandle)
-	traverseVA(rxhandle, rounds=5, expect=num_drugs)
-	#sys.exit(0)
+	if not rxhandle.can_cache():
+		initVA(rxhandle)
+		traverseVA(rxhandle, rounds=5, expect=num_drugs)
 	
 	# loop all
 	i = 0
@@ -288,13 +292,13 @@ if '__main__' == __name__:
 	print('->  Indexing {} items'.format(num_drugs))
 	
 	for res in all_drugs:
-		ingr = toIngredients([res[0]], res[1])
-		
 		params = [res[0]]
 		params.extend(drug_types)
 		label = rxhandle.lookup_rxcui_name(res[0])
 		
-		ti = toTreatmentIntents(ingr, 'IN')
+		# find ingredients (slow!) and drug classes (cached) and count
+		ingr = toIngredients(rxhandle, [res[0]], res[1])
+		ti = toTreatmentIntents(rxhandle, ingr, 'IN')
 		va = toDrugClasses(rxhandle, res[0])
 		if len(ti) > 0:
 			w_ti += 1
@@ -309,9 +313,9 @@ if '__main__' == __name__:
 			'tty': res[1],
 			'label': label,
 			'ingredients': list(ingr),
-			'generics': list(toBrandAndGeneric([res[0]], res[1])),
-			'components': list(toComponents([res[0]], res[1])),
-		#   'mechanisms': list(toMechanism(ingr, 'IN')),
+			'generics': list(toBrandAndGeneric(rxhandle, [res[0]], res[1])),
+		#	'components': list(toComponents(rxhandle, [res[0]], res[1])),			# very slow
+		#   'mechanisms': list(toMechanism(rxhandle, ingr, 'IN')),
 			'treatmentIntents': list(ti),
 			'va_classes': list(va)
 		}
@@ -326,6 +330,10 @@ if '__main__' == __name__:
 			last_report = datetime.now()
 			print('->  {:.1%}   n: {}, ti: {}, va: {}, either: {}'.format(i / num_drugs, i, w_ti, w_va, w_either), end="\r")
 	
-	print('->  {:.2%}   n: {}, ti: {}, va: {}, either: {}'.format(i / num_drugs, i, w_ti, w_va, w_either))
+	print('->  {:.1%}   n: {}, ti: {}, va: {}, either: {}'.format(i / num_drugs, i, w_ti, w_va, w_either))
 	print('=>  Done')
 
+
+if '__main__' == __name__:
+	logging.basicConfig(level=logging.INFO)
+	runImport()

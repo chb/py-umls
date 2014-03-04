@@ -30,7 +30,7 @@ class RxNorm (object):
 		"""
 		
 		# RxNorm
-		rxnorm_db = os.path.join('databases', 'rxnorm.db')
+		rxnorm_db = os.path.join(os.path.dirname(__file__), 'databases/rxnorm.db')
 		if not os.path.exists(rxnorm_db):
 			raise Exception("The RxNorm database at {} does not exist. Run the import script `databases/rxnorm.sh`."
 				.format(os.path.abspath(rxnorm_db)))
@@ -184,6 +184,9 @@ class RxNormLookup (object):
 
 
 	# -------------------------------------------------------------------------- Drug Class OBSOLETE, WILL BE GONE
+	def can_cache(self):
+		return self.sqlite.hasTable('va_cache')
+	
 	def prepare_to_cache_classes(self):
 		if self.sqlite.create('va_cache', '(rxcui primary key, va varchar)'):
 			self.cache_drug_class = True
