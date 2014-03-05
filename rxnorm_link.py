@@ -295,11 +295,16 @@ def runImport(cb_host='localhost', cb_port=8091, cb_bucket='rxnorm'):
 		params = [res[0]]
 		params.extend(drug_types)
 		label = rxhandle.lookup_rxcui_name(res[0])
+		ndc = rxhandle.ndc_for_rxcui(res[0])
 		
-		# find ingredients (slow!) and drug classes (cached) and count
+		# find ingredients (slow!), drug classes (cached) and more
 		ingr = toIngredients(rxhandle, [res[0]], res[1])
 		ti = toTreatmentIntents(rxhandle, ingr, 'IN')
 		va = toDrugClasses(rxhandle, res[0])
+		gen = toBrandAndGeneric(rxhandle, [res[0]], res[1])
+		comp = []#toComponents(rxhandle, [res[0]], res[1])		# very slow
+		mech = []#toMechanism(rxhandle, ingr, 'IN')
+		
 		if len(ti) > 0:
 			w_ti += 1
 		if len(va) > 0:
@@ -307,18 +312,27 @@ def runImport(cb_host='localhost', cb_port=8091, cb_bucket='rxnorm'):
 		if len(ti) > 0 or len(va) > 0:
 			w_either += 1
 		
-		# create JSON document and insert
+		# create JSON document (save space by not adding empty properties)
 		d = {
 			'_id': res[0],
 			'tty': res[1],
 			'label': label,
-			'ingredients': list(ingr),
-			'generics': list(toBrandAndGeneric(rxhandle, [res[0]], res[1])),
-		#	'components': list(toComponents(rxhandle, [res[0]], res[1])),			# very slow
-		#   'mechanisms': list(toMechanism(rxhandle, ingr, 'IN')),
-			'treatmentIntents': list(ti),
-			'va_classes': list(va)
 		}
+		if ndc:
+			d['ndc'] = ndc
+		
+		if len(ingr) > 0:
+			d['ingredients'] = list(ingr)
+		if len(ti) > 0:
+			d['treatmentIntents'] = list(ti)
+		if len(va) > 0:
+			d['va_classes'] = list(va)
+		if len(gen) > 0:
+			d['generics'] = list(gen)
+		if len(comp) > 0:
+			d['components'] = list(comp)
+		if len(mech) > 0:
+			d['mechanisms'] = list(mech)
 		
 		# insert into Couchbase (using .set() will overwrite existing documents)
 		# print(json.dumps(d, sort_keys=True, indent=2))

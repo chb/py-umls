@@ -155,6 +155,13 @@ class RxNormLookup (object):
 		popular = OrderedDict(Counter(rxcuis).most_common())
 		return popular.popitem(False)[0]
 	
+	def ndc_for_rxcui(self, rxcui):
+		if rxcui is None:
+			return None
+		sql = 'SELECT ndc FROM ndc WHERE rxcui = ?'
+		res = self.sqlite.executeOne(sql, (rxcui,))
+		return res[0] if res else None
+	
 	def rxcui_for_name(self, name):
 		if name is None:
 			return None
