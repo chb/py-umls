@@ -15,7 +15,8 @@ sys.path.insert(0, os.path.dirname(__file__))
 import json
 import signal
 import logging
-import couchbase
+import pymongo
+#import couchbase
 from datetime import datetime
 
 from rxnorm import RxNorm, RxNormLookup
@@ -244,7 +245,7 @@ def toDrugClasses(rxhandle, rxcui):
 	return res[0].split('|') if res is not None else []
 
 
-def runImport(cb_host='localhost', cb_port=8091, cb_bucket='rxnorm'):
+def runImport(db_host=None, db_port=None, db_user=None, db_pass=None, db_name=None, db_bucket='rxnorm'):
 	
 	# install keyboard interrupt handler
 	def signal_handler(signal, frame):
@@ -257,18 +258,23 @@ def runImport(cb_host='localhost', cb_port=8091, cb_bucket='rxnorm'):
 	rxhandle = RxNormLookup()
 	rxhandle.prepare_to_cache_classes()
 	
-	# prepare Couchbase
+	# prepare Mongo/Couchbase
 	try:
-		cb = couchbase.Couchbase.connect(
-			host=cb_host,
-			port=cb_port,
-			bucket=cb_bucket
-		)
+		# cb = couchbase.Couchbase.connect(
+		# 	host=xxx,
+		# 	port=xxx,
+		# 	bucket=db_bucket
+		# )
+		host = db_host if db_host else 'localhost'
+		port = db_port if db_port else 27017
+		conn = pymongo.MongoClient(host=host, port=port)
+		db = conn[db_name if db_name else 'default']
+		if db_user and db_pass:
+			db.authenticate(db_user, db_pass)
+		mng = db[db_bucket if db_bucket else 'default']
 	except Exception as e:
 		logging.error(e)
 		sys.exit(1)
-	
-	fmt = couchbase.FMT_JSON
 	
 	# fetch rxcui's of certain TTYs
 	drug_types = ('SCD', 'SCDC', 'SBDG', 'SBD', 'SBDC', 'BN', 'SBDF', 'SCDG', 'SCDF', 'IN', 'MIN', 'PIN', 'BPCK', 'GPCK')
@@ -291,6 +297,7 @@ def runImport(cb_host='localhost', cb_port=8091, cb_bucket='rxnorm'):
 	last_report = datetime.now()
 	print('->  Indexing {} items'.format(num_drugs))
 	
+	insert_docs = []
 	for res in all_drugs:
 		params = [res[0]]
 		params.extend(drug_types)
@@ -335,14 +342,23 @@ def runImport(cb_host='localhost', cb_port=8091, cb_bucket='rxnorm'):
 			d['mechanisms'] = list(mech)
 		
 		# insert into Couchbase (using .set() will overwrite existing documents)
+		# or Mongo (one insert every 50 documents)
 		# print(json.dumps(d, sort_keys=True, indent=2))
-		cb.set(res[0], d, format=fmt)
+		# cb.set(res[0], d, format=couchbase.FMT_JSON)
+		insert_docs.append(d)
 		i += 1
+		
+		if 0 == i % 50:
+			mng.insert(insert_docs)
+			insert_docs = []
 		
 		# inform every 5 seconds or so
 		if (datetime.now() - last_report).seconds > 5:
 			last_report = datetime.now()
 			print('->  {:.1%}   n: {}, ti: {}, va: {}, either: {}'.format(i / num_drugs, i, w_ti, w_va, w_either), end="\r")
+	
+	if len(insert_docs) > 0:
+		mng.insert(insert_docs)
 	
 	print('->  {:.1%}   n: {}, ti: {}, va: {}, either: {}'.format(i / num_drugs, i, w_ti, w_va, w_either))
 	print('=>  Done')
