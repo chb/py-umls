@@ -9,6 +9,8 @@ For each of the three databases there are scripts (2 Bash and 1 Python) that fac
 For a simple start, run one of the files (`umls.py`, `snomed.py`, `rxnorm.py`) in your Shell and follow the instructions.
 The scripts will prompt you to download and install the databases and, when completed, print a simple example lookup.
 
+There are also utility scripts that offer help for specific use cases, see below.
+
 Usage
 -----
 
@@ -35,3 +37,18 @@ You would typically use this module as a submodule in your own project.
 Best add this as a _git submodule_ but that really is up to you.
 But if you do use this module as a Python module, you can't use the name `py-umls` because it contains a dash, so you must checkout this code to a correctly named directory.
 I usually use `UMLS`.
+
+Utilities
+---------
+
+### rxnorm_graph.py
+
+Create a graphical representation (PDF) of relationships for a given RXCUI.
+You need to have `dot` installed (part of the GraphViz package).
+Run the script from command line and provide a RXCUI as the first argument.
+The script will then traverse the relationship graph of that concept to a specific depth (8 by default) and plot the relationships into a dot file and a PDF.
+
+### rxnorm_link.py
+
+This script precomputes ingredients, generics, treatment intents and drug classes for storage into a NoSQL database.
+The script will run a while and you'll need to set up the database (MongoDB or Couchbase) in code.

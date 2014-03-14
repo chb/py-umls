@@ -384,10 +384,9 @@ if '__main__' == __name__:
 	look = RxNormLookup()
 	code = '328406'
 	meaning = look.lookup_rxcui_name(code, preferred=False)
-	dclasses = look.va_drug_class(code)
-	dclass = dclasses[0] if dclasses else None
-	fclasses = look.friendly_class_format(dclass)
+	ttys = look.lookup_tty(code)
+	related = look.lookup_related(code)
+	
 	print('RxNorm code      "{0}":  {1}'.format(code, meaning))
-	print('Drug class       "{0}":  {1}'.format(code, dclass))
-	print('Friendly classes "{0}":  {1}'.format(code, fclasses))
-
+	print('Concept type     "{0}":  {1}'.format(code, ', '.join(ttys)))
+	print('Relationships    "{0}":  {1}'.format(code, ";  ".join(['{} {}'.format(r, c) for c, r in related])))
