@@ -272,6 +272,8 @@ def runImport(db_host=None, db_port=None, db_user=None, db_pass=None, db_name=No
 		if db_user and db_pass:
 			db.authenticate(db_user, db_pass)
 		mng = db[db_bucket if db_bucket else 'default']
+		mng.ensureIndex({'ndc': 1})
+		mng.ensureIndex({'label': 1})
 	except Exception as e:
 		logging.error(e)
 		sys.exit(1)

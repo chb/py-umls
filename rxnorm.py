@@ -11,6 +11,9 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 import logging
 import re
+import requests
+import xml.etree.ElementTree as ET
+
 from collections import Counter, OrderedDict
 from sqlite import SQLite
 from graphable import GraphableObject, GraphableRelation
@@ -169,7 +172,8 @@ class RxNormLookup (object):
 		until a match is found.
 		
 		This works but is slow and far from perfect. RxNav's ``approxMatch`` is
-		definitely better.
+		definitely better, you can use :method:`rxcui_for_name_approx` to get
+		an RXCUI using that service.
 		
 		:param str name: The name to get an RXCUI for
 		:returns: The best matching rxcui, if any
@@ -203,6 +207,23 @@ class RxNormLookup (object):
 		
 		popular = OrderedDict(Counter(rxcuis).most_common())
 		return popular.popitem(False)[0]
+	
+	def rxcui_for_name_approx(self, name):
+		""" Returns the best ``approxMatch`` RXCUI as found when using RxNav's
+		service against the provided name. Runs synchronously.
+		
+		:param str name: The name to get an RXCUI for
+		:returns: The top ranked rxcui, if any
+		"""
+		if name is None:
+			return None
+		
+		r = requests.get('http://rxnav.nlm.nih.gov/REST/approx', params={'term': name})
+		root = ET.fromstring(r.text)
+		cand = root.findall('approxGroup/candidate')
+		rxcui = cand[0].find('rxcui').text if len(cand) > 0 else None
+		
+		return rxcui
 
 
 	# -------------------------------------------------------------------------- Drug Class OBSOLETE, WILL BE GONE
