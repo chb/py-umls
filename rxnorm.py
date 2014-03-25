@@ -163,21 +163,36 @@ class RxNormLookup (object):
 		return res[0] if res else None
 	
 	def rxcui_for_name(self, name):
+		""" Tries to find an RXCUI for the concept name. Does this by performing
+		a "starts with" against the STR column on RXNCONSO, then replaces any
+		spaces with wildcards and finally chops off one word after the other
+		until a match is found.
+		
+		This works but is slow and far from perfect. RxNav's ``approxMatch`` is
+		definitely better.
+		
+		:param str name: The name to get an RXCUI for
+		:returns: The best matching rxcui, if any
+		"""
 		if name is None:
 			return None
 		
 		rxcuis = {}
 		
 		# try the full string, allowing wildcard at the trailing end
-		sql = 'SELECT RXCUI FROM RXNCONSO WHERE STR LIKE ?'
+		sql = 'SELECT rxcui, tty FROM rxnconso WHERE str LIKE ?'
 		for res in self.sqlite.execute(sql, (name + '%',)):
 			rxcuis[res[0]] = rxcuis.get(res[0], 0) + 1
 		
-		# nothing yet, try chopping off parts from the right
+		# nothing yet, replace spaces with '%'
+		for res in self.sqlite.execute(sql, (name.replace(' ', '%') + '%',)):
+			rxcuis[res[0]] = rxcuis.get(res[0], 0) + 1
+		
+		# still nothing, try chopping off parts from the right
 		if 0 == len(rxcuis):
 			parts = name.split()
 			for x in range(len(parts) - 1):
-				comp = ' '.join(parts[:-(x+1)])
+				comp = '%'.join(parts[:-(x+1)])
 				for res in self.sqlite.execute(sql, (comp + '%',)):
 					rxcuis[res[0]] = rxcuis.get(res[0], 0) + 1
 				if len(rxcuis) > 0:
