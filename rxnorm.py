@@ -143,6 +143,14 @@ class RxNormLookup (object):
 	
 	# -------------------------------------------------------------------------- RxCUI
 	def rxcui_for_ndc(self, ndc):
+		""" Find the RXCUI for the given NDC from our NDC-cache-table.
+		
+		This method only does exact lookup for now, it should be extended to
+		use normalized NDC formats.
+		
+		:param str ndc: The NDC to look up
+		:returns: The matching RXCUI as string or None
+		"""
 		if ndc is None:
 			return None
 		# TODO: ensure NDC normalization
@@ -152,18 +160,30 @@ class RxNormLookup (object):
 		for res in self.sqlite.execute(sql, (ndc,)):
 			rxcuis[res[0]] = rxcuis.get(res[0], 0) + 1
 		
-		if len(rxcuis) < 2:
-			return list(rxcuis.keys())[0] if len(rxcuis) > 0 else None
+		rxcui = list(rxcuis.keys())[0] if len(rxcuis) > 0 else None
+		if len(rxcuis) > 1:
+			popular = OrderedDict(Counter(rxcuis).most_common())
+			rxcui = popular.popitem(False)[0]
 		
-		popular = OrderedDict(Counter(rxcuis).most_common())
-		return popular.popitem(False)[0]
+		return str(rxcui) if rxcui is not None else None
 	
 	def ndc_for_rxcui(self, rxcui):
+		""" Find the NDC from our NDC-cache-table for the given RXCUI.
+		"""
 		if rxcui is None:
 			return None
+		
+		rxcuis = {}
 		sql = 'SELECT ndc FROM ndc WHERE rxcui = ?'
-		res = self.sqlite.executeOne(sql, (rxcui,))
-		return res[0] if res else None
+		for res in self.sqlite.execute(sql, (ndc,)):
+			rxcuis[res[0]] = rxcuis.get(res[0], 0) + 1
+		
+		rxcui = list(rxcuis.keys())[0] if len(rxcuis) > 0 else None
+		if len(rxcuis) > 1:
+			popular = OrderedDict(Counter(rxcuis).most_common())
+			rxcui = popular.popitem(False)[0]
+		
+		return str(rxcui) if rxcui is not None else None
 	
 	def rxcui_for_name(self, name):
 		""" Tries to find an RXCUI for the concept name. Does this by performing
@@ -176,7 +196,7 @@ class RxNormLookup (object):
 		an RXCUI using that service.
 		
 		:param str name: The name to get an RXCUI for
-		:returns: The best matching rxcui, if any
+		:returns: The best matching rxcui, if any, as string
 		"""
 		if name is None:
 			return None
@@ -202,18 +222,19 @@ class RxNormLookup (object):
 				if len(rxcuis) > 0:
 					break
 		
-		if len(rxcuis) < 2:
-			return list(rxcuis.keys())[0] if len(rxcuis) > 0 else None
+		rxcui = list(rxcuis.keys())[0] if len(rxcuis) > 0 else None
+		if len(rxcuis) > 1:
+			popular = OrderedDict(Counter(rxcuis).most_common())
+			rxcui = popular.popitem(False)[0]
 		
-		popular = OrderedDict(Counter(rxcuis).most_common())
-		return popular.popitem(False)[0]
+		return str(rxcui) if rxcui is not None else None
 	
 	def rxcui_for_name_approx(self, name):
 		""" Returns the best ``approxMatch`` RXCUI as found when using RxNav's
 		service against the provided name. Runs synchronously.
 		
 		:param str name: The name to get an RXCUI for
-		:returns: The top ranked rxcui, if any
+		:returns: The top ranked rxcui, if any, as string
 		"""
 		if name is None:
 			return None
@@ -223,7 +244,7 @@ class RxNormLookup (object):
 		cand = root.findall('approxGroup/candidate')
 		rxcui = cand[0].find('rxcui').text if len(cand) > 0 else None
 		
-		return rxcui
+		return str(rxcui) if rxcui is not None else None
 
 
 	# -------------------------------------------------------------------------- Drug Class OBSOLETE, WILL BE GONE
