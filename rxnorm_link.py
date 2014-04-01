@@ -278,7 +278,7 @@ def runImport(db_host=None, db_port=None, db_user=None, db_pass=None, db_name=No
 		logging.error(e)
 		sys.exit(1)
 	
-	# fetch rxcui's of certain TTYs
+	# fetch rxcui's for drug-type concepts (i.e. restrict by TTY)
 	drug_types = ('SCD', 'SCDC', 'SBDG', 'SBD', 'SBDC', 'BN', 'SBDF', 'SCDG', 'SCDF', 'IN', 'MIN', 'PIN', 'BPCK', 'GPCK')
 	param = ', '.join(['?' for d in drug_types])
 	all_sql = "SELECT RXCUI, TTY from RXNCONSO where SAB='RXNORM' and TTY in ({})".format(param)
@@ -286,12 +286,13 @@ def runImport(db_host=None, db_port=None, db_user=None, db_pass=None, db_name=No
 	all_drugs = rxhandle.fetchAll(all_sql, drug_types)
 	num_drugs = len(all_drugs)
 	
-	# traverse VA classes
+	# traverse VA classes; starts the VA drug class caching process if needed,
+	# which runs a minute or two
 	if not rxhandle.can_cache():
 		initVA(rxhandle)
 		traverseVA(rxhandle, rounds=5, expect=num_drugs)
 	
-	# loop all
+	# loop all concepts
 	i = 0
 	w_ti = 0
 	w_va = 0
@@ -303,25 +304,18 @@ def runImport(db_host=None, db_port=None, db_user=None, db_pass=None, db_name=No
 	for res in all_drugs:
 		params = [res[0]]
 		params.extend(drug_types)
-		label = rxhandle.lookup_rxcui_name(res[0])
-		ndc = rxhandle.ndc_for_rxcui(res[0])
+		label = rxhandle.lookup_rxcui_name(res[0])				# fast (indexed column)
+		ndc = rxhandle.ndc_for_rxcui(res[0])					# fast (indexed column)
 		
-		# find ingredients (slow!), drug classes (cached) and more
-		ingr = toIngredients(rxhandle, [res[0]], res[1])
-		ti = toTreatmentIntents(rxhandle, ingr, 'IN')
-		va = toDrugClasses(rxhandle, res[0])
-		gen = toBrandAndGeneric(rxhandle, [res[0]], res[1])
+		# find ingredients, drug classes and more
+		ingr = toIngredients(rxhandle, [res[0]], res[1])		# rather slow
+		ti = toTreatmentIntents(rxhandle, ingr, 'IN')			# requires "ingr"
+		va = toDrugClasses(rxhandle, res[0])					# fast, loads from our cached table
+		gen = toBrandAndGeneric(rxhandle, [res[0]], res[1])		# fast
 		comp = []#toComponents(rxhandle, [res[0]], res[1])		# very slow
-		mech = []#toMechanism(rxhandle, ingr, 'IN')
+		mech = []#toMechanism(rxhandle, ingr, 'IN')				# 
 		
-		if len(ti) > 0:
-			w_ti += 1
-		if len(va) > 0:
-			w_va += 1
-		if len(ti) > 0 or len(va) > 0:
-			w_either += 1
-		
-		# create JSON document (save space by not adding empty properties)
+		# create JSON-ready dictionary (save space by not adding empty properties)
 		d = {
 			'_id': res[0],
 			'tty': res[1],
@@ -343,22 +337,37 @@ def runImport(db_host=None, db_port=None, db_user=None, db_pass=None, db_name=No
 		if len(mech) > 0:
 			d['mechanisms'] = list(mech)
 		
-		# insert into Couchbase (using .set() will overwrite existing documents)
-		# or Mongo (one insert every 50 documents)
-		# print(json.dumps(d, sort_keys=True, indent=2))
-		# cb.set(res[0], d, format=couchbase.FMT_JSON)
-		insert_docs.append(d)
+		# count
 		i += 1
+		if len(ti) > 0:
+			w_ti += 1
+		if len(va) > 0:
+			w_va += 1
+		if len(ti) > 0 or len(va) > 0:
+			w_either += 1
 		
+		
+		# Insert into Couchbase or Mongo 
+		# The dictionary "d" at this point contains all the drug's precomputed
+		# properties, to debug print this:
+		#print(json.dumps(d, sort_keys=True, indent=2))
+		
+		# Couchbase (using .set() will overwrite existing documents)
+		# cb.set(res[0], d, format=couchbase.FMT_JSON)
+		
+		# MongoDB (one insert every 50 documents)
+		insert_docs.append(d)
 		if 0 == i % 50:
 			mng.insert(insert_docs)
 			insert_docs = []
 		
-		# inform every 5 seconds or so
+		
+		# log progress every 5 seconds or so
 		if (datetime.now() - last_report).seconds > 5:
 			last_report = datetime.now()
 			print('->  {:.1%}   n: {}, ti: {}, va: {}, either: {}'.format(i / num_drugs, i, w_ti, w_va, w_either), end="\r")
 	
+	# loop done, insert remaining documents (MongoDB)
 	if len(insert_docs) > 0:
 		mng.insert(insert_docs)
 	
