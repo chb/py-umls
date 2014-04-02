@@ -288,7 +288,7 @@ def runImport(db_host=None, db_port=None, db_user=None, db_pass=None, db_name=No
 	
 	# traverse VA classes; starts the VA drug class caching process if needed,
 	# which runs a minute or two
-	if not rxhandle.can_cache():
+	if rxhandle.can_cache():
 		initVA(rxhandle)
 		traverseVA(rxhandle, rounds=5, expect=num_drugs)
 	

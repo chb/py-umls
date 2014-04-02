@@ -175,7 +175,7 @@ class RxNormLookup (object):
 		
 		rxcuis = {}
 		sql = 'SELECT ndc FROM ndc WHERE rxcui = ?'
-		for res in self.sqlite.execute(sql, (ndc,)):
+		for res in self.sqlite.execute(sql, (rxcui,)):
 			rxcuis[res[0]] = rxcuis.get(res[0], 0) + 1
 		
 		rxcui = list(rxcuis.keys())[0] if len(rxcuis) > 0 else None
