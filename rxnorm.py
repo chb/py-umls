@@ -236,17 +236,40 @@ class RxNormLookup (object):
 		:param str name: The name to get an RXCUI for
 		:returns: The top ranked rxcui, if any, as string
 		"""
+		matches = rxnav_approx_match(name, nmax=1)
+		return str(matches[0]) if matches is not None and len(matches) > 0 else None
+	
+	def rxnav_approx_match(self, name, nmax=10):
+		""" Returns the top #nmax ``approximateTerm`` rxcuis as found when using
+		RxNav's service against the provided name. Runs synchronously.
+		
+		:param str name: The name to get an RXCUI for
+		:param int nmax: The maximum number of unique rxcuis to return, 10 by
+			default
+		:returns: The top ranked rxcuis, if any, as a list
+		"""
 		if name is None:
 			return None
 		
-		r = requests.get('http://rxnav.nlm.nih.gov/REST/approx', params={'term': name})
+		url = 'http://rxnav.nlm.nih.gov/REST/approximateTerm'
+		r = requests.get(url, params={'term': name, 'option': 1})	# we don't use `maxEntries` as duplicate rxcuis count separately
 		root = ET.fromstring(r.text)
-		cand = root.findall('approxGroup/candidate')
-		rxcui = cand[0].find('rxcui').text if len(cand) > 0 else None
+		candidates = root.findall('.//candidate')
+		rxcuis = []
+		for cand in candidates:
+			rxcui = cand.find('rxcui')
+			if rxcui is not None and rxcui.text is not None:
+				#rank = cand.find('rank')		# rely on RxNav's order for now
+				if rxcui.text not in rxcuis:
+					rxcuis.append(rxcui.text)
+				
+				# stop after nmax
+				if nmax is not None and len(rxcuis) >= nmax:
+					break
 		
-		return str(rxcui) if rxcui is not None else None
-
-
+		return rxcuis
+	
+	
 	# -------------------------------------------------------------------------- Drug Class OBSOLETE, WILL BE GONE
 	def can_cache(self):
 		return self.sqlite.hasTable('va_cache')
