@@ -20,7 +20,8 @@ from graphable import GraphableObject, GraphableRelation
 
 
 class RxNorm (object):
-	""" A class for handling RxNorm in an SQLite database.
+	""" A class for handling RxNorm in an SQLite database and performing a
+	handful of RxNorm-related tasks.
 	"""
 	
 	@classmethod
@@ -37,6 +38,58 @@ class RxNorm (object):
 		if not os.path.exists(rxnorm_db):
 			raise Exception("The RxNorm database at {} does not exist. Run the import script `databases/rxnorm.sh`."
 				.format(os.path.abspath(rxnorm_db)))
+	
+	@classmethod
+	def ndc_normalize(cls, ndc):
+		""" Normalizes an NDC (National Drug Code) number. The pseudo-code
+		published by NIH (http://www.nlm.nih.gov/research/umls/rxnorm/NDC_Normalization_Code.rtf)
+		first identifies the format (e.g. "6-3-2") and then normalizes based on
+		that finding. However since the normalized string is always 5-4-2,
+		padded with leading zeroes and removing all dashes afterwards, this
+		implementation goes a much simpler route.
+		
+		:todo: TODO: There are quite a lot of NDCs with format 6-4 in the
+			RxNorm database, those are not covered by the pseoudocode and would
+			thus be invalid. For now we return those unaltered.
+		
+		:param str ndc: The NDC to normalize as string
+		:returns: A string with the normalized NDC, or `None` if the number
+			couldn't be normalized
+		"""
+		if ndc is None or 0 == len(ndc) or len(ndc) > 14:
+			return None
+		
+		# replace '*' with '0' as some of the NDCs from MTHFDA contain * instead of 0
+		norm = ndc.replace('*', '0')
+		
+		# split at dashes, pad with leading zeroes, cut to desired length
+		parts = norm.split('-')
+		
+		# two dashes, 6-4-1 or 6-3-2 or 5-3-2 or similar formats
+		if 3 == len(parts):
+			norm = '{}{}{}'.format(('00000'+parts[0])[-5:], ('0000'+parts[1])[-4:], ('00'+parts[2])[-2:])
+		
+		# one dash; this is NOT mentioned in the above cited reference but I
+		# see a lot of 6-4 formats. Return them unaltered for now instead of
+		# returning None
+		elif 2 == len(parts):
+			return norm
+		
+		# no dashes
+		elif 1 == len(parts):
+			
+			# if NDC passed has 12 digits and first char is '0' and it's from
+			# VANDF then trim first char. We do NOT check if it's from the VA
+			# as this would require more information than just the NDC
+			if 12 == len(norm) and '0' == norm[:1]:
+				norm = norm[1:]
+			
+			# only valid if it's 11 digits
+			elif 11 != len(norm):
+				return None
+		
+		# reject NDCs that still contain non-numeric chars
+		return norm if norm.isdigit() else None
 
 
 class RxNormLookup (object):
