@@ -41,8 +41,10 @@ class RxNorm (object):
 	
 	@classmethod
 	def ndc_normalize(cls, ndc):
-		""" Normalizes an NDC (National Drug Code) number. The pseudo-code
-		published by NIH (http://www.nlm.nih.gov/research/umls/rxnorm/NDC_Normalization_Code.rtf)
+		""" Normalizes an NDC (National Drug Code) number.
+		
+		The pseudo-code published by NIH
+		(http://www.nlm.nih.gov/research/umls/rxnorm/NDC_Normalization_Code.rtf)
 		first identifies the format (e.g. "6-3-2") and then normalizes based on
 		that finding. However since the normalized string is always 5-4-2,
 		padded with leading zeroes and removing all dashes afterwards, this
@@ -239,14 +241,15 @@ class RxNormLookup (object):
 		return str(rxcui) if rxcui is not None else None
 	
 	def rxcui_for_name(self, name):
-		""" Tries to find an RXCUI for the concept name. Does this by performing
-		a "starts with" against the STR column on RXNCONSO, then replaces any
-		spaces with wildcards and finally chops off one word after the other
-		until a match is found.
+		""" Tries to find an RXCUI for the concept name.
+		
+		Does this by performing a "starts with" against the STR column on
+		RXNCONSO, then replaces any spaces with wildcards and finally chops off
+		one word after the other until a match is found.
 		
 		This works but is slow and far from perfect. RxNav's ``approxMatch`` is
-		definitely better, you can use :method:`rxcui_for_name_approx` to get
-		an RXCUI using that service.
+		definitely better, you can use ``rxcui_for_name_approx`` to get an
+		RXCUI using that service.
 		
 		:param str name: The name to get an RXCUI for
 		:returns: The best matching rxcui, if any, as string

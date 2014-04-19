@@ -3,6 +3,12 @@ databases
 !databases/umls.sh
 !databases/rxnorm.sh
 
+# virtualenv
+env
+
+# docs
+docs/_build
+
 # system files
 .DS_Store
 __pycache__

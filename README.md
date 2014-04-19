@@ -11,6 +11,12 @@ The scripts will prompt you to download and install the databases and, when comp
 
 There are also utility scripts that offer help for specific use cases, see below.
 
+Documentation
+-------------
+
+An [auto-generated documentation](http://chb.github.io/py-umls/) (via Sphinx) is available but not very exhaustive at the moment.
+See below for some quick examples.
+
 Usage
 -----
 
@@ -40,6 +46,16 @@ I usually use `UMLS`.
 
 Utilities
 ---------
+
+### NDC Normalizer
+
+Normalizes an NDC (National Drug Code) number.
+It's built after the pseudo-code [published by NIH](http://www.nlm.nih.gov/research/umls/rxnorm/NDC_Normalization_Code.rtf), first identifies the format (e.g. "6-3-2") and then normalizes based on that finding.
+The pseudocode always normalizes the NDC to 5-4-2, padded with leading zeroes and removing all dashes afterwards.
+This implementation achieves the same normalization.
+
+**TODO**: There are quite a lot of NDCs with format 6-4 in the RxNorm database, those are not covered by the pseoudocode and would thus be invalid.
+For now we return those unaltered.
 
 ### rxnorm_graph.py
 

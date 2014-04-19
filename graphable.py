@@ -49,17 +49,20 @@ class GraphableObject (object):
 	
 	def announce_to(self, dot_context, via=None):
 		""" Announce the receiver to the context.
+		
 		Subclasses MUST NOT announce other graphable objects they are holding
 		on to here but they MUST announce them in "deliver_to" if appropriate.
+		
 		- dot_context The context to announce to
 		- via If not-None the other GraphableObject that is responsible for
-		  announcing the receiver
+			announcing the receiver
 		"""
 		self.announced_via = via
 		dot_context.announce(self)
 	
 	def deliver_to(self, dot_context, is_leaf):
 		""" Call the context's "deliver" method.
+		
 		This method is guaranteed to only be called once per context. Hence
 		subclasses that hold on to other graphable objects MUST ANNOUNCE those
 		instances here (but NOT deliver them) but ONLY IF "is_leaf" is not True.
