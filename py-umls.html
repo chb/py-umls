@@ -1,0 +1,925 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    
+    <title>py-umls package &mdash; py-umls  documentation</title>
+    
+    <link rel="stylesheet" href="_static/default.css" type="text/css" />
+    <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+    
+    <script type="text/javascript">
+      var DOCUMENTATION_OPTIONS = {
+        URL_ROOT:    './',
+        VERSION:     '',
+        COLLAPSE_INDEX: false,
+        FILE_SUFFIX: '.html',
+        HAS_SOURCE:  true
+      };
+    </script>
+    <script type="text/javascript" src="_static/jquery.js"></script>
+    <script type="text/javascript" src="_static/underscore.js"></script>
+    <script type="text/javascript" src="_static/doctools.js"></script>
+    <link rel="top" title="py-umls  documentation" href="index.html" />
+    <link rel="prev" title="py-umls" href="index.html" /> 
+  </head>
+  <body>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="py-umls"
+             accesskey="P">previous</a> |</li>
+        <li><a href="index.html">py-umls  documentation</a> &raquo;</li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body">
+            
+  <div class="section" id="py-umls-package">
+<h1>py-umls package<a class="headerlink" href="#py-umls-package" title="Permalink to this headline">¶</a></h1>
+<p>This package contains three modules with classes useful for dealing with <strong>RxNorm</strong>, then a module each for UMLS and SNOMED handling.</p>
+<div class="section" id="rxnorm">
+<h2>rxnorm<a class="headerlink" href="#rxnorm" title="Permalink to this headline">¶</a></h2>
+<p>Provides classes that deal with RxNorm. This is very much WiP!</p>
+<span class="target" id="module-rxnorm"></span><dl class="class">
+<dt id="rxnorm.RxNorm">
+<em class="property">class </em><tt class="descclassname">rxnorm.</tt><tt class="descname">RxNorm</tt><a class="headerlink" href="#rxnorm.RxNorm" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<p>A class for handling RxNorm in an SQLite database and performing a
+handful of RxNorm-related tasks.</p>
+<dl class="classmethod">
+<dt id="rxnorm.RxNorm.check_database">
+<em class="property">classmethod </em><tt class="descname">check_database</tt><big>(</big><big>)</big><a class="headerlink" href="#rxnorm.RxNorm.check_database" title="Permalink to this definition">¶</a></dt>
+<dd><p>Check if our database is in place and if not, import them.
+Will raise on errors!</p>
+<p>RxNorm: (rxnorm.db)
+If missing prompt to use the <cite>rxnorm.sh</cite> script</p>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="rxnorm.RxNorm.ndc_normalize">
+<em class="property">classmethod </em><tt class="descname">ndc_normalize</tt><big>(</big><em>ndc</em><big>)</big><a class="headerlink" href="#rxnorm.RxNorm.ndc_normalize" title="Permalink to this definition">¶</a></dt>
+<dd><p>Normalizes an NDC (National Drug Code) number.</p>
+<p>The pseudo-code published by NIH
+(<a class="reference external" href="http://www.nlm.nih.gov/research/umls/rxnorm/NDC_Normalization_Code.rtf">http://www.nlm.nih.gov/research/umls/rxnorm/NDC_Normalization_Code.rtf</a>)
+first identifies the format (e.g. &#8220;6-3-2&#8221;) and then normalizes based on
+that finding. However since the normalized string is always 5-4-2,
+padded with leading zeroes and removing all dashes afterwards, this
+implementation goes a much simpler route.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Todo:</th><td class="field-body">TODO: There are quite a lot of NDCs with format 6-4 in the
+RxNorm database, those are not covered by the pseoudocode and would
+thus be invalid. For now we return those unaltered.</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Parameters:</th><td class="field-body"><strong>ndc</strong> (<em>str</em>) &#8211; The NDC to normalize as string</td>
+</tr>
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">A string with the normalized NDC, or <cite>None</cite> if the number
+couldn&#8217;t be normalized</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="rxnorm.RxNormCUI">
+<em class="property">class </em><tt class="descclassname">rxnorm.</tt><tt class="descname">RxNormCUI</tt><big>(</big><em>rxcui</em>, <em>label=None</em><big>)</big><a class="headerlink" href="#rxnorm.RxNormCUI" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#graphable.GraphableObject" title="graphable.GraphableObject"><tt class="xref py py-class docutils literal"><span class="pre">graphable.GraphableObject</span></tt></a></p>
+<dl class="method">
+<dt id="rxnorm.RxNormCUI.deliver_to">
+<tt class="descname">deliver_to</tt><big>(</big><em>dot_context</em>, <em>is_leaf</em><big>)</big><a class="headerlink" href="#rxnorm.RxNormCUI.deliver_to" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="rxnorm.RxNormCUI.find_relations">
+<tt class="descname">find_relations</tt><big>(</big><em>to_rxcui=None</em>, <em>max_width=10</em><big>)</big><a class="headerlink" href="#rxnorm.RxNormCUI.find_relations" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="rxnorm.RxNormCUI.relations">
+<tt class="descname">relations</tt><em class="property"> = None</em><a class="headerlink" href="#rxnorm.RxNormCUI.relations" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="rxnorm.RxNormCUI.rxcui">
+<tt class="descname">rxcui</tt><em class="property"> = None</em><a class="headerlink" href="#rxnorm.RxNormCUI.rxcui" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="rxnorm.RxNormCUI.rxlookup">
+<tt class="descname">rxlookup</tt><em class="property"> = &lt;rxnorm.RxNormLookup object at 0x1023c3250&gt;</em><a class="headerlink" href="#rxnorm.RxNormCUI.rxlookup" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="rxnorm.RxNormCUI.ttys">
+<tt class="descname">ttys</tt><a class="headerlink" href="#rxnorm.RxNormCUI.ttys" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="rxnorm.RxNormCUI.update_self_from_rxcui">
+<tt class="descname">update_self_from_rxcui</tt><big>(</big><big>)</big><a class="headerlink" href="#rxnorm.RxNormCUI.update_self_from_rxcui" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="rxnorm.RxNormCUI.update_shape_from_ttys">
+<tt class="descname">update_shape_from_ttys</tt><big>(</big><big>)</big><a class="headerlink" href="#rxnorm.RxNormCUI.update_shape_from_ttys" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="rxnorm.RxNormConceptRelation">
+<em class="property">class </em><tt class="descclassname">rxnorm.</tt><tt class="descname">RxNormConceptRelation</tt><big>(</big><em>rxcuiobj1</em>, <em>rela</em>, <em>rxcuiobj2</em><big>)</big><a class="headerlink" href="#rxnorm.RxNormConceptRelation" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#graphable.GraphableRelation" title="graphable.GraphableRelation"><tt class="xref py py-class docutils literal"><span class="pre">graphable.GraphableRelation</span></tt></a></p>
+<dl class="attribute">
+<dt id="rxnorm.RxNormConceptRelation.rxcui1">
+<tt class="descname">rxcui1</tt><em class="property"> = None</em><a class="headerlink" href="#rxnorm.RxNormConceptRelation.rxcui1" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="rxnorm.RxNormConceptRelation.rxcui2">
+<tt class="descname">rxcui2</tt><em class="property"> = None</em><a class="headerlink" href="#rxnorm.RxNormConceptRelation.rxcui2" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="rxnorm.RxNormLookup">
+<em class="property">class </em><tt class="descclassname">rxnorm.</tt><tt class="descname">RxNormLookup</tt><a class="headerlink" href="#rxnorm.RxNormLookup" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<p>Class for RxNorm lookup.</p>
+<dl class="attribute">
+<dt id="rxnorm.RxNormLookup.cache_drug_class">
+<tt class="descname">cache_drug_class</tt><em class="property"> = False</em><a class="headerlink" href="#rxnorm.RxNormLookup.cache_drug_class" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="rxnorm.RxNormLookup.can_cache">
+<tt class="descname">can_cache</tt><big>(</big><big>)</big><a class="headerlink" href="#rxnorm.RxNormLookup.can_cache" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="rxnorm.RxNormLookup.execute">
+<tt class="descname">execute</tt><big>(</big><em>sql</em>, <em>params=()</em><big>)</big><a class="headerlink" href="#rxnorm.RxNormLookup.execute" title="Permalink to this definition">¶</a></dt>
+<dd><p>Execute and return the pointer of an SQLite execute() query.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="rxnorm.RxNormLookup.fetchAll">
+<tt class="descname">fetchAll</tt><big>(</big><em>sql</em>, <em>params=()</em><big>)</big><a class="headerlink" href="#rxnorm.RxNormLookup.fetchAll" title="Permalink to this definition">¶</a></dt>
+<dd><p>Execute and return the result of fetchall() on a raw SQL query.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="rxnorm.RxNormLookup.fetchOne">
+<tt class="descname">fetchOne</tt><big>(</big><em>sql</em>, <em>params=()</em><big>)</big><a class="headerlink" href="#rxnorm.RxNormLookup.fetchOne" title="Permalink to this definition">¶</a></dt>
+<dd><p>Execute and return the result of fetchone() on a raw SQL query.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="rxnorm.RxNormLookup.friendly_class_format">
+<tt class="descname">friendly_class_format</tt><big>(</big><em>va_name</em><big>)</big><a class="headerlink" href="#rxnorm.RxNormLookup.friendly_class_format" title="Permalink to this definition">¶</a></dt>
+<dd><p>Tries to reformat the VA drug class name so it&#8217;s suitable for
+display.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="rxnorm.RxNormLookup.lookup_related">
+<tt class="descname">lookup_related</tt><big>(</big><em>rxcui</em>, <em>relation=None</em>, <em>to_rxcui=None</em><big>)</big><a class="headerlink" href="#rxnorm.RxNormLookup.lookup_related" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a set of tuples containing the RXCUI and the actual relation
+for the desired relation, or all if the relation is not specified.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="rxnorm.RxNormLookup.lookup_rxcui">
+<tt class="descname">lookup_rxcui</tt><big>(</big><em>rxcui</em>, <em>preferred=True</em><big>)</big><a class="headerlink" href="#rxnorm.RxNormLookup.lookup_rxcui" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a tuple with (str, tty, rxcui, rxaui) or - if &#8220;preferred&#8221; is
+False - a tuple with (preferred-name, list-of-tuples)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="rxnorm.RxNormLookup.lookup_rxcui_name">
+<tt class="descname">lookup_rxcui_name</tt><big>(</big><em>rxcui</em>, <em>preferred=True</em>, <em>no_html=True</em><big>)</big><a class="headerlink" href="#rxnorm.RxNormLookup.lookup_rxcui_name" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a string or HTML for the meaning of the given code.
+If preferred is True (the default), only one match will be returned,
+looking for specific TTY and using the &#8220;best&#8221; one.
+There is currently NO SUPPORT FOR preferred = False</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="rxnorm.RxNormLookup.lookup_tty">
+<tt class="descname">lookup_tty</tt><big>(</big><em>rxcui</em><big>)</big><a class="headerlink" href="#rxnorm.RxNormLookup.lookup_tty" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a set of TTYs for the given RXCUI.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="rxnorm.RxNormLookup.ndc_for_rxcui">
+<tt class="descname">ndc_for_rxcui</tt><big>(</big><em>rxcui</em><big>)</big><a class="headerlink" href="#rxnorm.RxNormLookup.ndc_for_rxcui" title="Permalink to this definition">¶</a></dt>
+<dd><p>Find the NDC from our NDC-cache-table for the given RXCUI.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="rxnorm.RxNormLookup.prepare_to_cache_classes">
+<tt class="descname">prepare_to_cache_classes</tt><big>(</big><big>)</big><a class="headerlink" href="#rxnorm.RxNormLookup.prepare_to_cache_classes" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="rxnorm.RxNormLookup.rxcui_for_name">
+<tt class="descname">rxcui_for_name</tt><big>(</big><em>name</em><big>)</big><a class="headerlink" href="#rxnorm.RxNormLookup.rxcui_for_name" title="Permalink to this definition">¶</a></dt>
+<dd><p>Tries to find an RXCUI for the concept name.</p>
+<p>Does this by performing a &#8220;starts with&#8221; against the STR column on
+RXNCONSO, then replaces any spaces with wildcards and finally chops off
+one word after the other until a match is found.</p>
+<p>This works but is slow and far from perfect. RxNav&#8217;s <tt class="docutils literal"><span class="pre">approxMatch</span></tt> is
+definitely better, you can use <tt class="docutils literal"><span class="pre">rxcui_for_name_approx</span></tt> to get an
+RXCUI using that service.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>name</strong> (<em>str</em>) &#8211; The name to get an RXCUI for</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">The best matching rxcui, if any, as string</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="rxnorm.RxNormLookup.rxcui_for_name_approx">
+<tt class="descname">rxcui_for_name_approx</tt><big>(</big><em>name</em><big>)</big><a class="headerlink" href="#rxnorm.RxNormLookup.rxcui_for_name_approx" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the best <tt class="docutils literal"><span class="pre">approxMatch</span></tt> RXCUI as found when using RxNav&#8217;s
+service against the provided name. Runs synchronously.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>name</strong> (<em>str</em>) &#8211; The name to get an RXCUI for</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">The top ranked rxcui, if any, as string</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="rxnorm.RxNormLookup.rxcui_for_ndc">
+<tt class="descname">rxcui_for_ndc</tt><big>(</big><em>ndc</em><big>)</big><a class="headerlink" href="#rxnorm.RxNormLookup.rxcui_for_ndc" title="Permalink to this definition">¶</a></dt>
+<dd><p>Find the RXCUI for the given NDC from our NDC-cache-table.</p>
+<p>This method only does exact lookup for now, it should be extended to
+use normalized NDC formats.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>ndc</strong> (<em>str</em>) &#8211; The NDC to look up</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">The matching RXCUI as string or None</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="rxnorm.RxNormLookup.rxnav_approx_match">
+<tt class="descname">rxnav_approx_match</tt><big>(</big><em>name</em>, <em>nmax=10</em><big>)</big><a class="headerlink" href="#rxnorm.RxNormLookup.rxnav_approx_match" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the top #nmax <tt class="docutils literal"><span class="pre">approximateTerm</span></tt> rxcuis as found when using
+RxNav&#8217;s service against the provided name. Runs synchronously.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>name</strong> (<em>str</em>) &#8211; The name to get an RXCUI for</li>
+<li><strong>nmax</strong> (<em>int</em>) &#8211; The maximum number of unique rxcuis to return, 10 by
+default</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">The top ranked rxcuis, if any, as a list</p>
+</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="rxnorm.RxNormLookup.sqlite">
+<tt class="descname">sqlite</tt><em class="property"> = None</em><a class="headerlink" href="#rxnorm.RxNormLookup.sqlite" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="rxnorm.RxNormLookup.va_drug_class">
+<tt class="descname">va_drug_class</tt><big>(</big><em>rxcui</em><big>)</big><a class="headerlink" href="#rxnorm.RxNormLookup.va_drug_class" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a list of VA class names for a given RXCUI. EXPERIMENTAL.</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="rxnorm-link">
+<h2>rxnorm_link<a class="headerlink" href="#rxnorm-link" title="Permalink to this headline">¶</a></h2>
+<p>A script used to create JSON documents from most RxNorm concepts and store them into a NoSQL database. This is very much WiP!</p>
+<span class="target" id="module-rxnorm_link"></span><dl class="function">
+<dt id="rxnorm_link.doQ">
+<tt class="descclassname">rxnorm_link.</tt><tt class="descname">doQ</tt><big>(</big><em>rxhandle</em>, <em>q</em>, <em>p</em><big>)</big><a class="headerlink" href="#rxnorm_link.doQ" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="rxnorm_link.initVA">
+<tt class="descclassname">rxnorm_link.</tt><tt class="descname">initVA</tt><big>(</big><em>rxhandle</em><big>)</big><a class="headerlink" href="#rxnorm_link.initVA" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="rxnorm_link.runImport">
+<tt class="descclassname">rxnorm_link.</tt><tt class="descname">runImport</tt><big>(</big><em>db_host=None</em>, <em>db_port=None</em>, <em>db_user=None</em>, <em>db_pass=None</em>, <em>db_name=None</em>, <em>db_bucket='rxnorm'</em><big>)</big><a class="headerlink" href="#rxnorm_link.runImport" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="rxnorm_link.storeVAs">
+<tt class="descclassname">rxnorm_link.</tt><tt class="descname">storeVAs</tt><big>(</big><em>rxhandle</em>, <em>rxcui</em>, <em>vas</em>, <em>level=0</em><big>)</big><a class="headerlink" href="#rxnorm_link.storeVAs" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="rxnorm_link.toBrandAndGeneric">
+<tt class="descclassname">rxnorm_link.</tt><tt class="descname">toBrandAndGeneric</tt><big>(</big><em>rxhandle</em>, <em>rxcuis</em>, <em>tty</em><big>)</big><a class="headerlink" href="#rxnorm_link.toBrandAndGeneric" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="rxnorm_link.toComponents">
+<tt class="descclassname">rxnorm_link.</tt><tt class="descname">toComponents</tt><big>(</big><em>rxhandle</em>, <em>rxcuis</em>, <em>tty</em><big>)</big><a class="headerlink" href="#rxnorm_link.toComponents" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="rxnorm_link.toDrugClasses">
+<tt class="descclassname">rxnorm_link.</tt><tt class="descname">toDrugClasses</tt><big>(</big><em>rxhandle</em>, <em>rxcui</em><big>)</big><a class="headerlink" href="#rxnorm_link.toDrugClasses" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="rxnorm_link.toIngredients">
+<tt class="descclassname">rxnorm_link.</tt><tt class="descname">toIngredients</tt><big>(</big><em>rxhandle</em>, <em>rxcuis</em>, <em>tty</em><big>)</big><a class="headerlink" href="#rxnorm_link.toIngredients" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="rxnorm_link.toIngredients_helper">
+<tt class="descclassname">rxnorm_link.</tt><tt class="descname">toIngredients_helper</tt><big>(</big><em>rxhandle</em>, <em>rxcui</em>, <em>tty</em><big>)</big><a class="headerlink" href="#rxnorm_link.toIngredients_helper" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="rxnorm_link.toMechanism">
+<tt class="descclassname">rxnorm_link.</tt><tt class="descname">toMechanism</tt><big>(</big><em>rxhandle</em>, <em>rxcuis</em>, <em>tty</em><big>)</big><a class="headerlink" href="#rxnorm_link.toMechanism" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="rxnorm_link.toMechanism_helper">
+<tt class="descclassname">rxnorm_link.</tt><tt class="descname">toMechanism_helper</tt><big>(</big><em>rxhandle</em>, <em>rxcui</em>, <em>tty</em><big>)</big><a class="headerlink" href="#rxnorm_link.toMechanism_helper" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="rxnorm_link.toTreatmentIntents">
+<tt class="descclassname">rxnorm_link.</tt><tt class="descname">toTreatmentIntents</tt><big>(</big><em>rxhandle</em>, <em>rxcuis</em>, <em>tty</em><big>)</big><a class="headerlink" href="#rxnorm_link.toTreatmentIntents" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="rxnorm_link.toTreatmentIntents_helper">
+<tt class="descclassname">rxnorm_link.</tt><tt class="descname">toTreatmentIntents_helper</tt><big>(</big><em>rxhandle</em>, <em>rxcui</em>, <em>tty</em><big>)</big><a class="headerlink" href="#rxnorm_link.toTreatmentIntents_helper" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="function">
+<dt id="rxnorm_link.traverseVA">
+<tt class="descclassname">rxnorm_link.</tt><tt class="descname">traverseVA</tt><big>(</big><em>rxhandle</em>, <em>rounds=3</em>, <em>expect=203175</em><big>)</big><a class="headerlink" href="#rxnorm_link.traverseVA" title="Permalink to this definition">¶</a></dt>
+<dd><p>Drug classes are set for a couple of different TTYs, it seems however
+most consistently to be defined on CD, SCD and AB TTYs.
+We cache the classes in va_cache and loop over rxcuis with known classes,
+applying the known classes to certain relationships.</p>
+</dd></dl>
+
+<dl class="function">
+<dt id="rxnorm_link.walkVAs">
+<tt class="descclassname">rxnorm_link.</tt><tt class="descname">walkVAs</tt><big>(</big><em>rxhandle</em>, <em>rxcui</em>, <em>vas</em>, <em>mapping</em>, <em>at_level=0</em><big>)</big><a class="headerlink" href="#rxnorm_link.walkVAs" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+<div class="section" id="rxnorm-graph">
+<h2>rxnorm_graph<a class="headerlink" href="#rxnorm-graph" title="Permalink to this headline">¶</a></h2>
+<p>A useful script to help visualize relationships between RxNorm concepts, starting from a given RXCUI.
+Just run this script in your command line and follow the leader.</p>
+<span class="target" id="module-rxnorm_graph"></span></div>
+<div class="section" id="umls">
+<h2>umls<a class="headerlink" href="#umls" title="Permalink to this headline">¶</a></h2>
+<p>Module to deal with UMLS lexica.</p>
+<span class="target" id="module-umls"></span><dl class="class">
+<dt id="umls.UMLS">
+<em class="property">class </em><tt class="descclassname">umls.</tt><tt class="descname">UMLS</tt><a class="headerlink" href="#umls.UMLS" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<p>A class for importing UMLS terminologies into an SQLite database.</p>
+<dl class="classmethod">
+<dt id="umls.UMLS.check_database">
+<em class="property">classmethod </em><tt class="descname">check_database</tt><big>(</big><big>)</big><a class="headerlink" href="#umls.UMLS.check_database" title="Permalink to this definition">¶</a></dt>
+<dd><p>Check if our database is in place and if not, prompts to import it.
+Will raise on errors!</p>
+<p>UMLS: (umls.db)
+If missing prompt to use the <cite>umls.sh</cite> script</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="umls.UMLSLookup">
+<em class="property">class </em><tt class="descclassname">umls.</tt><tt class="descname">UMLSLookup</tt><a class="headerlink" href="#umls.UMLSLookup" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<p>UMLS lookup</p>
+<dl class="attribute">
+<dt id="umls.UMLSLookup.did_check_dbs">
+<tt class="descname">did_check_dbs</tt><em class="property"> = False</em><a class="headerlink" href="#umls.UMLSLookup.did_check_dbs" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="umls.UMLSLookup.lookup_code">
+<tt class="descname">lookup_code</tt><big>(</big><em>cui</em>, <em>preferred=True</em><big>)</big><a class="headerlink" href="#umls.UMLSLookup.lookup_code" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a list with triples that contain:
+- name
+- source
+- semantic type
+by looking it up in our &#8220;descriptions&#8221; database.
+The &#8220;preferred&#8221; settings has the effect that only names from SNOMED
+(SNOMEDCD) and the Metathesaurus (MTH) will be reported. A lookup in
+our &#8220;descriptions&#8221; table is much faster than combing through the full
+MRCONSO table.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="umls.UMLSLookup.lookup_code_meaning">
+<tt class="descname">lookup_code_meaning</tt><big>(</big><em>cui</em>, <em>preferred=True</em>, <em>no_html=True</em><big>)</big><a class="headerlink" href="#umls.UMLSLookup.lookup_code_meaning" title="Permalink to this definition">¶</a></dt>
+<dd><p>Return a string (an empty string if the cui is null or not found)
+by looking it up in our &#8220;descriptions&#8221; database.
+The &#8220;preferred&#8221; settings has the effect that only names from SNOMED
+(SNOMEDCD) and the Metathesaurus (MTH) will be reported. A lookup in
+our &#8220;descriptions&#8221; table is much faster than combing through the full
+MRCONSO table.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="umls.UMLSLookup.preferred_sources">
+<tt class="descname">preferred_sources</tt><em class="property"> = ['&quot;SNOMEDCT&quot;', '&quot;MTH&quot;']</em><a class="headerlink" href="#umls.UMLSLookup.preferred_sources" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="umls.UMLSLookup.sqlite">
+<tt class="descname">sqlite</tt><em class="property"> = None</em><a class="headerlink" href="#umls.UMLSLookup.sqlite" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="snomed">
+<h2>snomed<a class="headerlink" href="#snomed" title="Permalink to this headline">¶</a></h2>
+<p>Module to deal with the SNOMED terminology.</p>
+<span class="target" id="module-snomed"></span><dl class="class">
+<dt id="snomed.SNOMED">
+<em class="property">class </em><tt class="descclassname">snomed.</tt><tt class="descname">SNOMED</tt><a class="headerlink" href="#snomed.SNOMED" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<p>A class for importing UMLS terminologies into an SQLite database.</p>
+<dl class="classmethod">
+<dt id="snomed.SNOMED.check_database">
+<em class="property">classmethod </em><tt class="descname">check_database</tt><big>(</big><big>)</big><a class="headerlink" href="#snomed.SNOMED.check_database" title="Permalink to this definition">¶</a></dt>
+<dd><p>Check if our database is in place and if not, prompts to create it.
+Will raise on errors!</p>
+<p>SNOMED: (snomed.db)
+Read SNOMED CT from tab-separated files and create an SQLite database.</p>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="snomed.SNOMED.did_import">
+<em class="property">classmethod </em><tt class="descname">did_import</tt><big>(</big><em>table_name</em><big>)</big><a class="headerlink" href="#snomed.SNOMED.did_import" title="Permalink to this definition">¶</a></dt>
+<dd><p>Allows us to set hooks after tables have been imported</p>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="snomed.SNOMED.find_needed_files">
+<em class="property">classmethod </em><tt class="descname">find_needed_files</tt><big>(</big><em>snomed_dir</em><big>)</big><a class="headerlink" href="#snomed.SNOMED.find_needed_files" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="classmethod">
+<dt id="snomed.SNOMED.import_csv_into_table">
+<em class="property">classmethod </em><tt class="descname">import_csv_into_table</tt><big>(</big><em>snomed_file</em>, <em>table_name</em><big>)</big><a class="headerlink" href="#snomed.SNOMED.import_csv_into_table" title="Permalink to this definition">¶</a></dt>
+<dd><p>Import SNOMED CSV into our SQLite database.
+The SNOMED CSV files can be parsed by Python&#8217;s CSV parser with the
+&#8220;excel-tab&#8221; flavor.</p>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="snomed.SNOMED.import_from_files">
+<em class="property">classmethod </em><tt class="descname">import_from_files</tt><big>(</big><em>rx_map</em><big>)</big><a class="headerlink" href="#snomed.SNOMED.import_from_files" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="classmethod">
+<dt id="snomed.SNOMED.insert_query_for">
+<em class="property">classmethod </em><tt class="descname">insert_query_for</tt><big>(</big><em>table_name</em><big>)</big><a class="headerlink" href="#snomed.SNOMED.insert_query_for" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the insert query needed for the given table</p>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="snomed.SNOMED.insert_tuple_from_csv_row_for">
+<em class="property">classmethod </em><tt class="descname">insert_tuple_from_csv_row_for</tt><big>(</big><em>table_name</em>, <em>row</em><big>)</big><a class="headerlink" href="#snomed.SNOMED.insert_tuple_from_csv_row_for" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="classmethod">
+<dt id="snomed.SNOMED.setup_tables">
+<em class="property">classmethod </em><tt class="descname">setup_tables</tt><big>(</big><big>)</big><a class="headerlink" href="#snomed.SNOMED.setup_tables" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates the SQLite tables we need, not the tables we deserve.
+Does nothing if the tables/indexes already exist</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="snomed.SNOMED.sqlite_handle">
+<tt class="descname">sqlite_handle</tt><em class="property"> = None</em><a class="headerlink" href="#snomed.SNOMED.sqlite_handle" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="snomed.SNOMEDLookup">
+<em class="property">class </em><tt class="descclassname">snomed.</tt><tt class="descname">SNOMEDLookup</tt><a class="headerlink" href="#snomed.SNOMEDLookup" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<p>SNOMED lookup</p>
+<dl class="method">
+<dt id="snomed.SNOMEDLookup.lookup_code_meaning">
+<tt class="descname">lookup_code_meaning</tt><big>(</big><em>snomed_id</em>, <em>preferred=True</em>, <em>no_html=True</em><big>)</big><a class="headerlink" href="#snomed.SNOMEDLookup.lookup_code_meaning" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns HTML for all matches of the given SNOMED id.
+The &#8220;preferred&#8221; flag here currently has no function.</p>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="snomed.SNOMEDLookup.sqlite">
+<tt class="descname">sqlite</tt><em class="property"> = None</em><a class="headerlink" href="#snomed.SNOMEDLookup.sqlite" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="graphable">
+<h2>graphable<a class="headerlink" href="#graphable" title="Permalink to this headline">¶</a></h2>
+<p>Provides classes that can be used to create an interdependency graph.</p>
+<span class="target" id="module-graphable"></span><dl class="class">
+<dt id="graphable.DotContext">
+<em class="property">class </em><tt class="descclassname">graphable.</tt><tt class="descname">DotContext</tt><big>(</big><em>max_depth=None</em>, <em>max_width=None</em><big>)</big><a class="headerlink" href="#graphable.DotContext" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<dl class="method">
+<dt id="graphable.DotContext.announce">
+<tt class="descname">announce</tt><big>(</big><em>obj</em><big>)</big><a class="headerlink" href="#graphable.DotContext.announce" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="graphable.DotContext.deliver">
+<tt class="descname">deliver</tt><big>(</big><em>obj</em><big>)</big><a class="headerlink" href="#graphable.DotContext.deliver" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="graphable.DotContext.depth">
+<tt class="descname">depth</tt><em class="property"> = 0</em><a class="headerlink" href="#graphable.DotContext.depth" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="graphable.DotContext.get">
+<tt class="descname">get</tt><big>(</big><big>)</big><a class="headerlink" href="#graphable.DotContext.get" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="graphable.DotContext.items">
+<tt class="descname">items</tt><em class="property"> = None</em><a class="headerlink" href="#graphable.DotContext.items" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="graphable.DotContext.max_depth">
+<tt class="descname">max_depth</tt><em class="property"> = 8</em><a class="headerlink" href="#graphable.DotContext.max_depth" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="graphable.DotContext.max_width">
+<tt class="descname">max_width</tt><em class="property"> = 15</em><a class="headerlink" href="#graphable.DotContext.max_width" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="graphable.DotContext.source">
+<tt class="descname">source</tt><em class="property"> = None</em><a class="headerlink" href="#graphable.DotContext.source" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="graphable.GraphableObject">
+<em class="property">class </em><tt class="descclassname">graphable.</tt><tt class="descname">GraphableObject</tt><big>(</big><em>name</em>, <em>label=None</em><big>)</big><a class="headerlink" href="#graphable.GraphableObject" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<dl class="method">
+<dt id="graphable.GraphableObject.announce_to">
+<tt class="descname">announce_to</tt><big>(</big><em>dot_context</em>, <em>via=None</em><big>)</big><a class="headerlink" href="#graphable.GraphableObject.announce_to" title="Permalink to this definition">¶</a></dt>
+<dd><p>Announce the receiver to the context.</p>
+<p>Subclasses MUST NOT announce other graphable objects they are holding
+on to here but they MUST announce them in &#8220;deliver_to&#8221; if appropriate.</p>
+<ul>
+<li><p class="first">dot_context The context to announce to</p>
+</li>
+<li><dl class="first docutils">
+<dt>via If not-None the other GraphableObject that is responsible for</dt>
+<dd><p class="first last">announcing the receiver</p>
+</dd>
+</dl>
+</li>
+</ul>
+</dd></dl>
+
+<dl class="attribute">
+<dt id="graphable.GraphableObject.announced_via">
+<tt class="descname">announced_via</tt><em class="property"> = None</em><a class="headerlink" href="#graphable.GraphableObject.announced_via" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="graphable.GraphableObject.color">
+<tt class="descname">color</tt><em class="property"> = None</em><a class="headerlink" href="#graphable.GraphableObject.color" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="graphable.GraphableObject.deliver_to">
+<tt class="descname">deliver_to</tt><big>(</big><em>dot_context</em>, <em>is_leaf</em><big>)</big><a class="headerlink" href="#graphable.GraphableObject.deliver_to" title="Permalink to this definition">¶</a></dt>
+<dd><p>Call the context&#8217;s &#8220;deliver&#8221; method.</p>
+<p>This method is guaranteed to only be called once per context. Hence
+subclasses that hold on to other graphable objects MUST ANNOUNCE those
+instances here (but NOT deliver them) but ONLY IF &#8220;is_leaf&#8221; is not True.
+- dot_context The context to deliver to
+- is_leaf If True means the receiver is intended to be a leaf object</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="graphable.GraphableObject.dot_representation">
+<tt class="descname">dot_representation</tt><big>(</big><big>)</big><a class="headerlink" href="#graphable.GraphableObject.dot_representation" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="graphable.GraphableObject.inner_dot">
+<tt class="descname">inner_dot</tt><big>(</big><big>)</big><a class="headerlink" href="#graphable.GraphableObject.inner_dot" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="graphable.GraphableObject.label">
+<tt class="descname">label</tt><em class="property"> = None</em><a class="headerlink" href="#graphable.GraphableObject.label" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="graphable.GraphableObject.name">
+<tt class="descname">name</tt><a class="headerlink" href="#graphable.GraphableObject.name" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="graphable.GraphableObject.shape">
+<tt class="descname">shape</tt><em class="property"> = None</em><a class="headerlink" href="#graphable.GraphableObject.shape" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="graphable.GraphableObject.style">
+<tt class="descname">style</tt><em class="property"> = None</em><a class="headerlink" href="#graphable.GraphableObject.style" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="graphable.GraphableRelation">
+<em class="property">class </em><tt class="descclassname">graphable.</tt><tt class="descname">GraphableRelation</tt><big>(</big><em>rel_from</em>, <em>label</em>, <em>rel_to</em><big>)</big><a class="headerlink" href="#graphable.GraphableRelation" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="#graphable.GraphableObject" title="graphable.GraphableObject"><tt class="xref py py-class docutils literal"><span class="pre">graphable.GraphableObject</span></tt></a></p>
+<dl class="method">
+<dt id="graphable.GraphableRelation.deliver_to">
+<tt class="descname">deliver_to</tt><big>(</big><em>dot_context</em>, <em>is_leaf</em><big>)</big><a class="headerlink" href="#graphable.GraphableRelation.deliver_to" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="graphable.GraphableRelation.dot_representation">
+<tt class="descname">dot_representation</tt><big>(</big><big>)</big><a class="headerlink" href="#graphable.GraphableRelation.dot_representation" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="graphable.GraphableRelation.relation_from">
+<tt class="descname">relation_from</tt><em class="property"> = None</em><a class="headerlink" href="#graphable.GraphableRelation.relation_from" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="graphable.GraphableRelation.relation_to">
+<tt class="descname">relation_to</tt><em class="property"> = None</em><a class="headerlink" href="#graphable.GraphableRelation.relation_to" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="graphable.GraphvizGraphic">
+<em class="property">class </em><tt class="descclassname">graphable.</tt><tt class="descname">GraphvizGraphic</tt><big>(</big><em>out_file='rxgraph.png'</em><big>)</big><a class="headerlink" href="#graphable.GraphvizGraphic" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<dl class="attribute">
+<dt id="graphable.GraphvizGraphic.cmd">
+<tt class="descname">cmd</tt><em class="property"> = 'dot'</em><a class="headerlink" href="#graphable.GraphvizGraphic.cmd" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="graphable.GraphvizGraphic.executableCommand">
+<tt class="descname">executableCommand</tt><big>(</big><em>infile</em><big>)</big><a class="headerlink" href="#graphable.GraphvizGraphic.executableCommand" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="graphable.GraphvizGraphic.max_depth">
+<tt class="descname">max_depth</tt><em class="property"> = None</em><a class="headerlink" href="#graphable.GraphvizGraphic.max_depth" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="graphable.GraphvizGraphic.max_width">
+<tt class="descname">max_width</tt><em class="property"> = None</em><a class="headerlink" href="#graphable.GraphvizGraphic.max_width" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="graphable.GraphvizGraphic.out_dot">
+<tt class="descname">out_dot</tt><em class="property"> = None</em><a class="headerlink" href="#graphable.GraphvizGraphic.out_dot" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="graphable.GraphvizGraphic.out_file">
+<tt class="descname">out_file</tt><em class="property"> = None</em><a class="headerlink" href="#graphable.GraphvizGraphic.out_file" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="attribute">
+<dt id="graphable.GraphvizGraphic.out_type">
+<tt class="descname">out_type</tt><em class="property"> = 'pdf'</em><a class="headerlink" href="#graphable.GraphvizGraphic.out_type" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="graphable.GraphvizGraphic.write_dot_graph">
+<tt class="descname">write_dot_graph</tt><big>(</big><em>obj</em><big>)</big><a class="headerlink" href="#graphable.GraphvizGraphic.write_dot_graph" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+<div class="section" id="sqlite">
+<h2>sqlite<a class="headerlink" href="#sqlite" title="Permalink to this headline">¶</a></h2>
+<p>Our SQLite connection class.</p>
+<span class="target" id="module-sqlite"></span><dl class="class">
+<dt id="sqlite.SQLite">
+<em class="property">class </em><tt class="descclassname">sqlite.</tt><tt class="descname">SQLite</tt><big>(</big><em>database=None</em><big>)</big><a class="headerlink" href="#sqlite.SQLite" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<p>SQLite access</p>
+<dl class="method">
+<dt id="sqlite.SQLite.close">
+<tt class="descname">close</tt><big>(</big><big>)</big><a class="headerlink" href="#sqlite.SQLite.close" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sqlite.SQLite.commit">
+<tt class="descname">commit</tt><big>(</big><big>)</big><a class="headerlink" href="#sqlite.SQLite.commit" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sqlite.SQLite.connect">
+<tt class="descname">connect</tt><big>(</big><big>)</big><a class="headerlink" href="#sqlite.SQLite.connect" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sqlite.SQLite.create">
+<tt class="descname">create</tt><big>(</big><em>table_name</em>, <em>table_structure</em><big>)</big><a class="headerlink" href="#sqlite.SQLite.create" title="Permalink to this definition">¶</a></dt>
+<dd><p>Executes a CREATE TABLE IF NOT EXISTS query with the given structure.
+Input is NOT sanitized, watch it!</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="sqlite.SQLite.execute">
+<tt class="descname">execute</tt><big>(</big><em>sql</em>, <em>params=()</em><big>)</big><a class="headerlink" href="#sqlite.SQLite.execute" title="Permalink to this definition">¶</a></dt>
+<dd><p>Executes an SQL command and returns the cursor.execute, which can
+be used as an iterator.
+Supply the params as tuple, i.e. (param,) and (param1, param2, ...)</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="sqlite.SQLite.executeInsert">
+<tt class="descname">executeInsert</tt><big>(</big><em>sql</em>, <em>params=()</em><big>)</big><a class="headerlink" href="#sqlite.SQLite.executeInsert" title="Permalink to this definition">¶</a></dt>
+<dd><p>Executes an SQL command (should be INSERT OR REPLACE) and returns
+the last row id, 0 on failure.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="sqlite.SQLite.executeOne">
+<tt class="descname">executeOne</tt><big>(</big><em>sql</em>, <em>params</em><big>)</big><a class="headerlink" href="#sqlite.SQLite.executeOne" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the first row returned by executing the command</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="sqlite.SQLite.executeUpdate">
+<tt class="descname">executeUpdate</tt><big>(</big><em>sql</em>, <em>params=()</em><big>)</big><a class="headerlink" href="#sqlite.SQLite.executeUpdate" title="Permalink to this definition">¶</a></dt>
+<dd><p>Executes an SQL command (should be UPDATE) and returns the number
+of affected rows.</p>
+</dd></dl>
+
+<dl class="classmethod">
+<dt id="sqlite.SQLite.get">
+<em class="property">classmethod </em><tt class="descname">get</tt><big>(</big><em>database</em><big>)</big><a class="headerlink" href="#sqlite.SQLite.get" title="Permalink to this definition">¶</a></dt>
+<dd><p>Use this to get SQLite instances for a given database. Avoids
+creating multiple instances for the same database.</p>
+<p>We keep instances around per thread per database, maybe there should be
+a way to turn this off. However, here we always release instances for
+threads that are no longer alive. If this is better than just always
+creating a new instance should be tested.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="sqlite.SQLite.hasTable">
+<tt class="descname">hasTable</tt><big>(</big><em>table_name</em><big>)</big><a class="headerlink" href="#sqlite.SQLite.hasTable" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns whether the given table exists.</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="sqlite.SQLite.rollback">
+<tt class="descname">rollback</tt><big>(</big><big>)</big><a class="headerlink" href="#sqlite.SQLite.rollback" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+</div>
+</div>
+
+
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar">
+        <div class="sphinxsidebarwrapper">
+  <h3><a href="index.html">Table Of Contents</a></h3>
+  <ul>
+<li><a class="reference internal" href="#">py-umls package</a><ul>
+<li><a class="reference internal" href="#rxnorm">rxnorm</a></li>
+<li><a class="reference internal" href="#rxnorm-link">rxnorm_link</a></li>
+<li><a class="reference internal" href="#rxnorm-graph">rxnorm_graph</a></li>
+<li><a class="reference internal" href="#umls">umls</a></li>
+<li><a class="reference internal" href="#snomed">snomed</a></li>
+<li><a class="reference internal" href="#graphable">graphable</a></li>
+<li><a class="reference internal" href="#sqlite">sqlite</a></li>
+</ul>
+</li>
+</ul>
+
+  <h4>Previous topic</h4>
+  <p class="topless"><a href="index.html"
+                        title="previous chapter">py-umls</a></p>
+  <h3>This Page</h3>
+  <ul class="this-page-menu">
+    <li><a href="_sources/py-umls.txt"
+           rel="nofollow">Show Source</a></li>
+  </ul>
+<div id="searchbox" style="display: none">
+  <h3>Quick search</h3>
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" />
+      <input type="submit" value="Go" />
+      <input type="hidden" name="check_keywords" value="yes" />
+      <input type="hidden" name="area" value="default" />
+    </form>
+    <p class="searchtip" style="font-size: 90%">
+    Enter search terms or a module, class or function name.
+    </p>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="py-umls"
+             >previous</a> |</li>
+        <li><a href="index.html">py-umls  documentation</a> &raquo;</li> 
+      </ul>
+    </div>
+    <div class="footer">
+        &copy; Copyright 2014, Pascal Pfiffner.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.2.2.
+    </div>
+  </body>
+</html>
