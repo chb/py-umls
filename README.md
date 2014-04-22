@@ -57,14 +57,17 @@ This implementation achieves the same normalization.
 **TODO**: There are quite a lot of NDCs with format 6-4 in the RxNorm database, those are not covered by the pseoudocode and would thus be invalid.
 For now we return those unaltered.
 
+### rxnorm_link.py
+
+This script precomputes ingredients, generics, treatment intents, drug classes and mechanisms of action per RxNorm concept (of specific TTYs).
+The script will run for a couple of minutes but NOT STORE ANYTHING **as-is**.
+You can uncomment a line that prints the generated document or do your own things, or even better:
+use the script `rxnorm_link_run.sh` after you've set up your MongoDB credentials and the script will store one JSON document per RXCUI and TTY combination into a NoSQL database.
+Look into `rxnorm_link_run.py` (note the file ending) where the server connections are set up and insertion happens; a Couchbase implementation is missing.
+
 ### rxnorm_graph.py
 
 Create a graphical representation (PDF) of relationships for a given RXCUI.
 You need to have `dot` installed (part of the GraphViz package).
 Run the script from command line and provide a RXCUI as the first argument.
 The script will then traverse the relationship graph of that concept to a specific depth (8 by default) and plot the relationships into a dot file and a PDF.
-
-### rxnorm_link.py
-
-This script precomputes ingredients, generics, treatment intents and drug classes for storage into a NoSQL database.
-The script will run a while and you'll need to set up the database (MongoDB or Couchbase) in code.
