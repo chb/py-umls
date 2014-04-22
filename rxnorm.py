@@ -50,9 +50,8 @@ class RxNorm (object):
 		padded with leading zeroes and removing all dashes afterwards, this
 		implementation goes a much simpler route.
 		
-		:todo: TODO: There are quite a lot of NDCs with format 6-4 in the
-			RxNorm database, those are not covered by the pseoudocode and would
-			thus be invalid. For now we return those unaltered.
+		NDCs that only contain one dash are treated as if they were missing the
+		package specifier, so they get a "-00" appended before normalization.
 		
 		:param str ndc: The NDC to normalize as string
 		:returns: A string with the normalized NDC, or `None` if the number
@@ -67,21 +66,23 @@ class RxNorm (object):
 		# split at dashes, pad with leading zeroes, cut to desired length
 		parts = norm.split('-')
 		
-		# two dashes, 6-4-1 or 6-3-2 or 5-3-2 or similar formats
+		# Code with only one dash; this is NOT mentioned in the above cited
+		# reference but I see a lot of codes with 6-4 format.
+		# These are likely codes without package specifier, though some that I
+		# checked seem to not or no longer exist.
+		# We append "-00" to get a 6-4-2 format and are done with it.
+		if 2 == len(parts):
+			parts.append('00')
+		
+		# two dashes, 6-4-1 or 5-3-2 or similar formats, concat to 5-4-2
 		if 3 == len(parts):
 			norm = '{}{}{}'.format(('00000'+parts[0])[-5:], ('0000'+parts[1])[-4:], ('00'+parts[2])[-2:])
-		
-		# one dash; this is NOT mentioned in the above cited reference but I
-		# see a lot of 6-4 formats. Return them unaltered for now instead of
-		# returning None
-		elif 2 == len(parts):
-			return norm
 		
 		# no dashes
 		elif 1 == len(parts):
 			
-			# if NDC passed has 12 digits and first char is '0' and it's from
-			# VANDF then trim first char. We do NOT check if it's from the VA
+			# "if NDC passed has 12 digits and first char is '0' and it's from
+			# VANDF then trim first char". We do NOT check if it's from the VA
 			# as this would require more information than just the NDC
 			if 12 == len(norm) and '0' == norm[:1]:
 				norm = norm[1:]

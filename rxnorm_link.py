@@ -210,7 +210,7 @@ def traverseVA(rxhandle, rounds=3, expect=203175):
 		
 		# commit after every round
 		rxhandle.sqlite.commit()
-		print('=>  Step {}, found classes for {} of {} drugs, now at {:.1%} coverage'.format(l+1, len(this_round), expect, len(found) / expect))
+		print('=>  Step {}, found classes for {} of {} drugs, now at {:.0%} coverage'.format(l+1, len(this_round), expect, len(found) / expect))
 	
 	print('->  VA class mapping complete')
 
