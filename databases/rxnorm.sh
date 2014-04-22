@@ -59,13 +59,11 @@ if [ ! -e rxnorm.db ]; then
 	sqlite3 rxnorm.db "CREATE INDEX X_RXNREL_RXCUI1 ON RXNREL (RXCUI1);"
 	sqlite3 rxnorm.db "CREATE INDEX X_RXNREL_RXCUI2 ON RXNREL (RXCUI2);"
 	sqlite3 rxnorm.db "CREATE INDEX X_RXNREL_RXAUI2 ON RXNREL (RXAUI2);"
-	sqlite3 rxnorm.db "CREATE INDEX X_RXNREL_RELA ON RXNREL (RELA);"
+	#sqlite3 rxnorm.db "CREATE INDEX X_RXNREL_RELA ON RXNREL (RELA);"		# do NOT do this! slows down queries dramatically
 	
 	echo "-> Indexing RXNCONSO table"
 	sqlite3 rxnorm.db "CREATE INDEX X_RXNCONSO_RXCUI ON RXNCONSO (RXCUI);"
 	sqlite3 rxnorm.db "CREATE INDEX X_RXNCONSO_RXAUI ON RXNCONSO (RXAUI);"
-	sqlite3 rxnorm.db "CREATE INDEX X_RXNCONSO_STR ON RXNCONSO (STR);"
-	sqlite3 rxnorm.db "CREATE INDEX X_RXNCONSO_TTY ON RXNCONSO (TTY);"
 	
 	# How to export from SQLite: export NDC to CSV
 	# .mode csv

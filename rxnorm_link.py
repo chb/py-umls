@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 #
-#	Precompute and store interesting RXCUI relationships
+#	Precompute interesting RXCUI relationships into a dictionary. Use the script
+#	`rxnorm_link_run.sh` to store these dictionaries into a JSON database. See
+#	that script for parameters to change.
 #
 #	2012-09-28	Created by Josh Mandel
 #	2014-02-10	Stolen by Pascal Pfiffner
@@ -15,8 +17,6 @@ sys.path.insert(0, os.path.dirname(__file__))
 import json
 import signal
 import logging
-import pymongo
-#import couchbase
 from datetime import datetime
 
 from rxnorm import RxNorm, RxNormLookup
@@ -124,6 +124,9 @@ def toIngredients_helper(rxhandle, rxcui, tty):
 
 
 def initVA(rxhandle):
+	""" Initializes the VA drug class cache table and inserts all known drug
+	classes by looking them up in the RXNSAT table (ATN = "VA_CLASS_NAME").
+	"""
 	# SELECT DISTINCT tty, COUNT(tty) FROM rxnsat LEFT JOIN rxnconso AS r USING (rxcui) WHERE atn = "VA_CLASS_NAME" GROUP BY tty;
 	rxhandle.execute('DROP TABLE IF EXISTS va_cache')
 	rxhandle.execute('''CREATE TABLE va_cache
@@ -186,55 +189,77 @@ def traverseVA(rxhandle, rounds=3, expect=203175):
 	}
 	
 	found = set()
-	ex_sql = 'SELECT rxcui, va FROM va_cache WHERE level = ?'
+	per_level_sql = 'SELECT rxcui, va FROM va_cache WHERE level = ?'
 	
 	for l in range(0,rounds):
 		i = 0
-		existing = rxhandle.fetchAll(ex_sql, (l,))
+		existing = rxhandle.fetchAll(per_level_sql, (l,))
 		num_drugs = len(existing)
+		this_round = set();
 		
 		# loop all rxcuis that already have a class and walk their relationships
 		for rxcui, va_imp in existing:
 			found.add(rxcui)
+			this_round.add(rxcui)
 			vas = va_imp.split('|')
-			walkVAs(rxhandle, rxcui, vas, mapping, l)
+			seekRelAndStoreSameVAs(rxhandle, rxcui, set(vas), mapping, l)
 			
 			# progress report
 			i += 1
-			print('->  {}  {:.0%}'.format(l+1, i / num_drugs), end="\r")
+			print('->  Step {}  {:.1%}'.format(l+1, i / num_drugs), end="\r")
 		
 		# commit after every round
 		rxhandle.sqlite.commit()
-		print('=>  {}  Found classes for {} of {} drugs ({:.1%})'.format(l+1, len(found), expect, len(found) / expect))
+		print('=>  Step {}, found classes for {} of {} drugs, now at {:.1%} coverage'.format(l+1, len(this_round), expect, len(found) / expect))
 	
 	print('->  VA class mapping complete')
 
-def walkVAs(rxhandle, rxcui, vas, mapping, at_level=0):
-	assert rxcui
-	assert len(vas) > 0
+def seekRelAndStoreSameVAs(rxhandle, rxcui, vas, mapping, at_level=0):
+	""" For the given RXCUI retrieves all relations, as defined in `mapping`,
+	and updates those concepts with the drug classes passed in in `vas`.
+	"""
+	assert(rxcui)
+	assert(len(vas) > 0)
 	
-	# get all possible relas for the given rxcui
+	# get all possible relas by checking the concept's TTY against our mapping
 	ttys = rxhandle.lookup_tty(rxcui)
-	relas = set()
+	desired_relas = set()
 	for tty in ttys:
 		if tty in mapping:
-			relas.update(mapping[tty])
+			desired_relas.update(mapping[tty])
+	if 0 == len(desired_relas):
+		return
 	
 	# get all related rxcuis with the possible "rela" value(s)
-	rel_fmt = ', '.join(['?' for r in relas])
-	rel_sql = '''SELECT DISTINCT rxcui1 FROM rxnrel
-				 WHERE rxcui2 = ? AND rela IN ({})'''.format(rel_fmt)
-	rel_params = [rxcui]
-	rel_params.extend(relas)
-	
-	exist_sql = 'SELECT va FROM va_cache WHERE rxcui = ?'
-	
-	for rel_rxcui in doQ(rxhandle, rel_sql, rel_params):
-		storeVAs(rxhandle, rel_rxcui, vas, at_level+1)
+	# Note: I had a "... AND rela IN (...)" in the following statement, but it
+	# turns out just doing this in Python isn't slower and code is shorter
+	rel_sql = 'SELECT DISTINCT rxcui1, rela FROM rxnrel WHERE rxcui2 = ?'
+	for res in rxhandle.fetchAll(rel_sql, [rxcui]):
+		if res[1] in desired_relas:
+			storeVAs(rxhandle, res[0], vas, at_level+1)
 
 def storeVAs(rxhandle, rxcui, vas, level=0):
-	assert rxcui
-	assert len(vas) > 0
+	""" Stores the drug classes `vas` for the given concept id, checking first
+	if that concept already has classes and updating the set.
+	"""
+	assert(rxcui)
+	assert(len(vas) > 0)
+	
+	# do we already have classes?
+	exist_sql = 'SELECT va FROM va_cache WHERE rxcui = ?'
+	exist_ret = doQ(rxhandle, exist_sql, [rxcui])
+	if exist_ret and len(exist_ret) > 0:
+		
+		# bail out if we already have a class (!!!)
+		return
+		
+		# split existing classes, decide if we all have them and if not, update
+		exist_vas = set(exist_ret[0].split('|'))
+		if vas <= exist_vas:
+			return
+		vas |= exist_vas
+	
+	# new, insert
 	ins_sql = 'INSERT OR REPLACE INTO va_cache (rxcui, va, level) VALUES (?, ?, ?)'
 	ins_val = '|'.join(vas)
 	rxhandle.execute(ins_sql, (rxcui, ins_val, level))
@@ -245,7 +270,13 @@ def toDrugClasses(rxhandle, rxcui):
 	return res[0].split('|') if res is not None else []
 
 
-def runImport(db_host=None, db_port=None, db_user=None, db_pass=None, db_name=None, db_bucket='rxnorm'):
+def runImport(doc_handler=None):
+	""" Run the actual linking.
+	
+	You can provide a :class:`DocHandler` subclass which will handle the JSON
+	documents, for example store them to MongoDB for the MongoDocHandler. These
+	classes are defined in `rxnorm_link_run.py` for now.
+	"""
 	
 	# install keyboard interrupt handler
 	def signal_handler(signal, frame):
@@ -253,27 +284,11 @@ def runImport(db_host=None, db_port=None, db_user=None, db_pass=None, db_name=No
 		sys.exit(0)
 	signal.signal(signal.SIGINT, signal_handler)
 	
-	# prepare databases
-	RxNorm.check_database()
-	rxhandle = RxNormLookup()
-	rxhandle.prepare_to_cache_classes()
-	
-	# prepare Mongo/Couchbase
+	# prepare RxNorm databases
 	try:
-		# cb = couchbase.Couchbase.connect(
-		# 	host=xxx,
-		# 	port=xxx,
-		# 	bucket=db_bucket
-		# )
-		host = db_host if db_host else 'localhost'
-		port = db_port if db_port else 27017
-		conn = pymongo.MongoClient(host=host, port=port)
-		db = conn[db_name if db_name else 'default']
-		if db_user and db_pass:
-			db.authenticate(db_user, db_pass)
-		mng = db[db_bucket if db_bucket else 'default']
-		mng.ensureIndex({'ndc': 1})
-		mng.ensureIndex({'label': 1})
+		RxNorm.check_database()
+		rxhandle = RxNormLookup()
+		rxhandle.prepare_to_cache_classes()
 	except Exception as e:
 		logging.error(e)
 		sys.exit(1)
@@ -300,20 +315,20 @@ def runImport(db_host=None, db_port=None, db_user=None, db_pass=None, db_name=No
 	last_report = datetime.now()
 	print('->  Indexing {} items'.format(num_drugs))
 	
-	insert_docs = []
 	for res in all_drugs:
 		params = [res[0]]
 		params.extend(drug_types)
 		label = rxhandle.lookup_rxcui_name(res[0])				# fast (indexed column)
 		ndc = rxhandle.ndc_for_rxcui(res[0])					# fast (indexed column)
+		ndc = RxNorm.ndc_normalize(ndc)							# fast (string permutation)
 		
 		# find ingredients, drug classes and more
 		ingr = toIngredients(rxhandle, [res[0]], res[1])		# rather slow
 		ti = toTreatmentIntents(rxhandle, ingr, 'IN')			# requires "ingr"
 		va = toDrugClasses(rxhandle, res[0])					# fast, loads from our cached table
 		gen = toBrandAndGeneric(rxhandle, [res[0]], res[1])		# fast
-		comp = []#toComponents(rxhandle, [res[0]], res[1])		# very slow
-		mech = []#toMechanism(rxhandle, ingr, 'IN')				# 
+		comp = toComponents(rxhandle, [res[0]], res[1])			# fast
+		mech = toMechanism(rxhandle, ingr, 'IN')				# fast
 		
 		# create JSON-ready dictionary (save space by not adding empty properties)
 		d = {
@@ -346,30 +361,20 @@ def runImport(db_host=None, db_port=None, db_user=None, db_pass=None, db_name=No
 		if len(ti) > 0 or len(va) > 0:
 			w_either += 1
 		
-		
-		# Insert into Couchbase or Mongo 
 		# The dictionary "d" at this point contains all the drug's precomputed
 		# properties, to debug print this:
 		#print(json.dumps(d, sort_keys=True, indent=2))
-		
-		# Couchbase (using .set() will overwrite existing documents)
-		# cb.set(res[0], d, format=couchbase.FMT_JSON)
-		
-		# MongoDB (one insert every 50 documents)
-		insert_docs.append(d)
-		if 0 == i % 50:
-			mng.insert(insert_docs)
-			insert_docs = []
-		
+		if doc_handler:
+			doc_handler.addDocument(d)
 		
 		# log progress every 5 seconds or so
 		if (datetime.now() - last_report).seconds > 5:
 			last_report = datetime.now()
 			print('->  {:.1%}   n: {}, ti: {}, va: {}, either: {}'.format(i / num_drugs, i, w_ti, w_va, w_either), end="\r")
 	
-	# loop done, insert remaining documents (MongoDB)
-	if len(insert_docs) > 0:
-		mng.insert(insert_docs)
+	# loop done, finalize
+	if doc_handler:
+		doc_handler.finalize()
 	
 	print('->  {:.1%}   n: {}, ti: {}, va: {}, either: {}'.format(i / num_drugs, i, w_ti, w_va, w_either))
 	print('=>  Done')
@@ -377,4 +382,5 @@ def runImport(db_host=None, db_port=None, db_user=None, db_pass=None, db_name=No
 
 if '__main__' == __name__:
 	logging.basicConfig(level=logging.INFO)
+	print('->  Running linking without document handler, meaning no RxNorm document will be stored')
 	runImport()
