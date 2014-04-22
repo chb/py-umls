@@ -332,7 +332,7 @@ def runImport(doc_handler=None):
 		
 		# create JSON-ready dictionary (save space by not adding empty properties)
 		d = {
-			'_id': res[0],
+			'rxcui': res[0],
 			'tty': res[1],
 			'label': label,
 		}
