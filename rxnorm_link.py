@@ -344,7 +344,7 @@ def runImport(doc_handler=None):
 		if len(ti) > 0:
 			d['treatmentIntents'] = list(ti)
 		if len(va) > 0:
-			d['va_classes'] = list(va)
+			d['drugClasses'] = list(va)
 		if len(gen) > 0:
 			d['generics'] = list(gen)
 		if len(comp) > 0:
