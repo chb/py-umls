@@ -293,7 +293,7 @@ class RxNormLookup (object):
 		:param str name: The name to get an RXCUI for
 		:returns: The top ranked rxcui, if any, as string
 		"""
-		matches = rxnav_approx_match(name, nmax=1)
+		matches = self.rxnav_approx_match(name, nmax=1)
 		return str(matches[0]) if matches is not None and len(matches) > 0 else None
 	
 	def rxnav_approx_match(self, name, nmax=10):
