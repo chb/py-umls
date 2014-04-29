@@ -24,9 +24,9 @@ class RxNormTest(unittest.TestCase):
 		# 6-4-1
 		self.assertEqual('00854684102', RxNorm.ndc_normalize('000854-6841-2'))
 		
-		# 6-4: do NOT change for now
-		self.assertEqual('057982-0110', RxNorm.ndc_normalize('057982-0110'))
-		self.assertEqual('012579-0056', RxNorm.ndc_normalize('012579-*056'))
+		# 6-4: treat as 6-4-2 with two trailing zeroes
+		self.assertEqual('57982011000', RxNorm.ndc_normalize('057982-0110'))
+		self.assertEqual('12579005600', RxNorm.ndc_normalize('012579-*056'))
 		
 		# 6-3-2
 		self.assertEqual('57982012312', RxNorm.ndc_normalize('057982-123-12'))
