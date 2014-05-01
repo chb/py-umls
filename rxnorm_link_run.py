@@ -74,26 +74,54 @@ class MongoDocHandler(DocHandler):
 		return "MongoDB {}".format(self.mng)
 
 
+class CSVHandler(DocHandler):
+	""" Handles CSV export. """
+	
+	def __init__(self):
+		super().__init__()
+		self.csv_file = 'rxnorm.csv'
+		self.csv_handle = open(self.csv_file, 'w')
+		self.csv_handle.write("rxcui,tty,ndc,name,va_classes,treating,ingredients\n")
+	
+	def addDocument(self, doc):
+		self.csv_handle.write('{},"{}",{},"{}","{}","{}","{}"{}'.format(
+			doc.get('rxcui', '0'),
+			doc.get('tty', ''),
+			doc.get('ndc', ''),
+			doc.get('label', ''),
+			';'.join(doc.get('drugClasses') or []),
+			';'.join(doc.get('treatmentIntents') or []),
+			';'.join(doc.get('ingredients') or []),
+			"\n"
+		))
+	
+	def __str__(self):
+		return 'CSV file "{}"'.format(self.csv_file)
+
+
 if '__main__' == __name__:
 	logging.basicConfig(level=logging.INFO)
 	
 	if 'did' != os.environ.get('DID_SOURCE_FOR_SETUP', 0):
-		print('x>  You should use "rxnorm_link_run.sh" in order to run the linking process')
+		logging.error('You should use "rxnorm_link_run.sh" in order to run the linking process')
 		sys.exit(1)
 	
 	# create handler and run
+	ex_type = os.environ.get('EXPORT_TYPE')
 	handler = None
-	try:
-		if os.environ.get('USE_MONGO', False):
-			print('->  Using MongoDB')
-			handler = MongoDocHandler()
-		
-		elif os.environ.get('USE_COUCH', False):
-			raise Exception('Couchbase not implemented')
+	if ex_type is not None:
+		try:
+			if 'mongo' == ex_type:
+				handler = MongoDocHandler()
+			elif 'couch' == ex_type:
+				raise Exception('Couchbase not implemented')
+			elif 'csv' == ex_type:
+				handler = CSVHandler()
+			else:
+				raise Exception('Unsupported type: {}'.format(ex_type))
+		except Exception as e:
+			logging.error(e)
+			sys.exit(1)
 	
-	except Exception as e:
-		logging.error(e)
-		sys.exit(1)
-	
-	print('->  Importing to {}'.format(handler))
+	print('->  Processing to {}'.format(handler))
 	runImport(doc_handler=handler)
