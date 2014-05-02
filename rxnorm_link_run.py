@@ -84,7 +84,7 @@ class CSVHandler(DocHandler):
 		self.csv_handle.write("rxcui,tty,ndc,name,va_classes,treating,ingredients\n")
 	
 	def addDocument(self, doc):
-		self.csv_handle.write('{},"{}",{},"{}","{}","{}","{}"{}'.format(
+		self.csv_handle.write('{},"{}","{}","{}","{}","{}","{}"{}'.format(
 			doc.get('rxcui', '0'),
 			doc.get('tty', ''),
 			doc.get('ndc', ''),
