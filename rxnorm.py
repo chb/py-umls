@@ -176,6 +176,12 @@ class RxNormLookup (object):
 	def lookup_related(self, rxcui, relation=None, to_rxcui=None):
 		""" Returns a set of tuples containing the RXCUI and the actual relation
 		for the desired relation, or all if the relation is not specified.
+		
+		:param str rxcui: The RXCUI for which to look up relations
+		:param str relation: Optional: the type of the relation, e.g. "has_ingredient"
+		:param str to_rxcui: An optional second rxcui, to return all relations
+			between the two given rxcuis. Ignored if `relation` is present.
+		:returns: A set of tuples, where tuples are (rxcui, rela)
 		"""
 		if rxcui is None:
 			return None
@@ -205,7 +211,7 @@ class RxNormLookup (object):
 		use normalized NDC formats.
 		
 		:param str ndc: The NDC to look up
-		:returns: The matching RXCUI as string or None
+		:returns: The matching RXCUI as string, or None
 		"""
 		if ndc is None:
 			return None
@@ -241,7 +247,7 @@ class RxNormLookup (object):
 		
 		return str(rxcui) if rxcui is not None else None
 	
-	def rxcui_for_name(self, name):
+	def rxcui_for_name(self, name, limit_tty=None):
 		""" Tries to find an RXCUI for the concept name.
 		
 		Does this by performing a "starts with" against the STR column on
@@ -253,15 +259,17 @@ class RxNormLookup (object):
 		RXCUI using that service.
 		
 		:param str name: The name to get an RXCUI for
+		:param list limit_tty: Optional: limit search to a given list of TTYs
 		:returns: The best matching rxcui, if any, as string
 		"""
 		if name is None:
 			return None
 		
 		rxcuis = {}
+		lim = 'tty IN ("{}") AND'.format('","'.join(limit_tty)) if limit_tty else ''
+		sql = 'SELECT rxcui, tty FROM rxnconso WHERE {} str LIKE ?'.format(lim)
 		
 		# try the full string, allowing wildcard at the trailing end
-		sql = 'SELECT rxcui, tty FROM rxnconso WHERE str LIKE ?'
 		for res in self.sqlite.execute(sql, (name + '%',)):
 			rxcuis[res[0]] = rxcuis.get(res[0], 0) + 1
 		
