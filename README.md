@@ -54,8 +54,8 @@ It's built after the pseudo-code [published by NIH](http://www.nlm.nih.gov/resea
 The pseudocode always normalizes the NDC to 5-4-2, padded with leading zeroes and removing all dashes afterwards.
 This implementation achieves the same normalization.
 
-**TODO**: There are quite a lot of NDCs with format 6-4 in the RxNorm database, those are not covered by the pseoudocode and would thus be invalid.
-For now we return those unaltered.
+It also handles NDC codes that come in the "6-4" format, which usually is a 6-4-2 format with omitted package code.
+Those codes first get normalized to 6-4-2 by appending "-00", then go through the standard normalization.
 
 ### rxnorm_link.py
 
