@@ -6,11 +6,27 @@
 # our SQLite database does not exist
 if [ ! -e umls.db ]; then
 	if [ ! -d "$1" ]; then
-		echo "Provide the path to the UMLS install directory as first argument when invoking this script. Download the latest version here: http://www.nlm.nih.gov/research/umls/licensedcontent/umlsknowledgesources.html (should check which file is needed)"
+		echo "Provide the path to the UMLS install directory, which is named something like \"2014AA\" and contains a \"META\" directory, as first argument when invoking this script."
+		echo
+		echo "Downloading and Extracting UMLS Data"
+		echo "===================================="
+		echo
+		echo "Downloading and extracting UMLS data is a painful process."
+		echo "Begin by downloading most files for the latest version listed on the left side here: http://www.nlm.nih.gov/research/umls/licensedcontent/umlsknowledgesources.html"
+		echo "Extract 'mmsys.zip' and place every downloaded file, including 'mmsys.zip', into the extracted directory."
+		echo "Run the respective 'runXX' script inside the mmsys directory; the MetamorphoSys Java GUI will open."
+		echo "Click \"Install UMLS\", as source directory select the just extracted mmsys directory and your chosen target directory."
+		echo "Leave the checkboxes alone and click OK."
+		echo "Now you must generate a configuration and in order to be able to proceed, save the configuration via a command from the menu bar."
+		echo "Then select \"Begin Subset\", also from the menubar, to start the extraction process."
+		echo "This should extract all the things and put in in the selected directory, which now contains a META directory with all the files we need to proceed."
+		echo
+		echo "Once you have done this, run this script again with the correct path as the first argument."
 		exit 1
 	fi
 	if [ ! -d "$1/META" ]; then
-		echo "There is no directory named META in the install directory you provided. Download the latest version here: http://www.nlm.nih.gov/research/umls/licensedcontent/umlsknowledgesources.html"
+		echo "There is no directory named META in the install directory you provided."
+		echo "Point this script to the directory named something like \"2014AA\"."
 		exit 1
 	fi
 	
