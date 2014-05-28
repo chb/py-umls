@@ -58,18 +58,16 @@ class UMLSLookup (object):
 		(SNOMEDCD) and the Metathesaurus (MTH) will be reported. A lookup in
 		our "descriptions" table is much faster than combing through the full
 		MRCONSO table.
+		
+		:returns: A list of triples with (name, sab, sty)
 		"""
 		if cui is None or len(cui) < 1:
 			return []
 		
 		# lazy UMLS db checking
 		if not UMLSLookup.did_check_dbs:
+			UMLS.check_database()
 			UMLSLookup.did_check_dbs = True
-			try:
-				UMLS.check_database()
-			except Exception as e:
-				logging.error(e)
-				# should this crash and burn?
 		
 		# take care of negations
 		negated = '-' == cui[0]
@@ -115,6 +113,39 @@ class UMLSLookup (object):
 		
 		comp = ", " if no_html else "<br/>\n"
 		return comp.join(names) if len(names) > 0 else ''
+	
+	
+	def lookup_code_for_name(self, name, preferred=True):
+		""" Tries to find a good concept code for the given concept name.
+		
+		Uses our indexed `descriptions` table.
+		
+		:returns: A list of triples with (cui, sab, sty)
+		"""
+		if name is None or len(name) < 1:
+			return None
+		
+		# lazy UMLS db checking
+		if not UMLSLookup.did_check_dbs:
+			UMLS.check_database()
+			UMLSLookup.did_check_dbs = True
+		
+		# CUI: Concept-ID
+		# STR: Name
+		# SAB: Abbreviated Source Name
+		# STY: Semantic Type
+		if preferred:
+			sql = 'SELECT CUI, SAB, STY FROM descriptions WHERE STR LIKE ? AND SAB IN ({})'.format(", ".join(UMLSLookup.preferred_sources))
+		else:
+			sql = 'SELECT CUI, SAB, STY FROM descriptions WHERE STR LIKE ?'
+		
+		# return as list
+		arr = []
+		for res in self.sqlite.execute(sql, ('%' + name + '%',)):
+			arr.append(res)
+		
+		return arr
+
 
 
 # running this as a script does the database setup/check
@@ -125,4 +156,10 @@ if '__main__' == __name__:
 	look = UMLSLookup()
 	code = 'C0002962'
 	meaning = look.lookup_code_meaning(code)
-	print('UMLS code "{0}":     {1}'.format(code, meaning))
+	print('UMLS code "{0}":  {1}'.format(code, meaning))
+	
+	name = 'Pulmonary Arterial Hypertension'
+	print('Search for "{}" returns:'.format(name))
+	codes = look.lookup_code_for_name(name)
+	for cd in codes:
+		print('{}:  {}'.format(cd, look.lookup_code_meaning(cd[0])))
