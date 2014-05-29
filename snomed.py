@@ -241,8 +241,8 @@ if '__main__' == __name__:
 		SNOMED.check_database()
 	except Exception as e:
 		if len(sys.argv) < 2:
-			print("""Provide the path to the extracted SNOMED directory as first argument.
-			\nDownload SNOMED from http://www.nlm.nih.gov/research/umls/licensedcontent/snomedctfiles.html""")
+			print("Provide the path to the extracted SNOMED directory as first argument.")
+			print("Download SNOMED from http://www.nlm.nih.gov/research/umls/licensedcontent/snomedctfiles.html""")
 			sys.exit(0)
 		
 		# import from files

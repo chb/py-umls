@@ -1,7 +1,5 @@
 # ignore database files but not the import scripts
-databases
-!databases/umls.sh
-!databases/rxnorm.sh
+databases/*.db
 
 # virtualenv
 env
