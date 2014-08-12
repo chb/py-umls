@@ -8,9 +8,6 @@ import os
 import sys
 import logging
 
-import pymongo
-#import couchbase
-
 from rxnorm_link import runImport
 
 
@@ -27,6 +24,16 @@ class DocHandler(object):
 	
 	def finalize(self):
 		pass
+
+
+class DebugDocHandler(DocHandler):
+	""" Simply logs each new document.
+	"""
+	def addDocument(self, doc):
+		print(doc)
+	
+	def __str__(self):
+		return "Debug logger"
 
 
 class MongoDocHandler(DocHandler):
@@ -71,7 +78,7 @@ class MongoDocHandler(DocHandler):
 			self.documents.clear()
 	
 	def __str__(self):
-		return "MongoDB {}".format(self.mng)
+		return "MongoDB import {}".format(self.mng)
 
 
 class CSVHandler(DocHandler):
@@ -108,17 +115,19 @@ if '__main__' == __name__:
 	
 	# create handler and run
 	ex_type = os.environ.get('EXPORT_TYPE')
-	handler = None
-	if ex_type is not None:
+	handler = DebugDocHandler()
+	if ex_type is not None and len(ex_type) > 0:
 		try:
 			if 'mongo' == ex_type:
+				import pymongo
 				handler = MongoDocHandler()
 			elif 'couch' == ex_type:
+				# import couchbase
 				raise Exception('Couchbase not implemented')
 			elif 'csv' == ex_type:
 				handler = CSVHandler()
 			else:
-				raise Exception('Unsupported type: {}'.format(ex_type))
+				raise Exception('Unsupported export type: {}'.format(ex_type))
 		except Exception as e:
 			logging.error(e)
 			sys.exit(1)

@@ -54,12 +54,12 @@ def toTreatmentIntents_helper(rxhandle, rxcui, tty):
 	assert tty=='IN'
 	ret = []
 	rxauis = doQ(rxhandle, "SELECT rxaui from rxnconso where rxcui=? and tty='FN' and sab='NDFRT'", (rxcui,))
-	for a in rxauis:
-		a1 = doQ(rxhandle, "SELECT rxaui1 from rxnrel where rxaui2=? and rela='may_treat'", (a,))
-		if len(a1) > 0:
-			dz = doQ(rxhandle, "SELECT str from rxnconso where rxaui=? and tty='FN' and sab='NDFRT'", (a1[0],))
-			dz = map(lambda x: x.replace(" [Disease/Finding]", ""), dz)
-			ret.extend(dz)
+	for rxaui in rxauis:
+		rxauis1 = doQ(rxhandle, "SELECT rxaui1 from rxnrel where rxaui2=? and rela='may_treat'", (rxaui,))
+		for rxaui1 in rxauis1:
+			name = doQ(rxhandle, "SELECT str from rxnconso where rxaui=? and tty='FN' and sab='NDFRT'", (rxaui1,))
+			name = map(lambda x: x.replace(" [Disease/Finding]", ""), name)
+			ret.extend(name)
 	return ret
 
 def toMechanism(rxhandle, rxcuis, tty):
@@ -210,7 +210,7 @@ def traverseVA(rxhandle, rounds=3, expect=203175):
 		
 		# commit after every round
 		rxhandle.sqlite.commit()
-		print('=>  Step {}, found classes for {} of {} drugs, now at {:.0%} coverage'.format(l+1, len(this_round), expect, len(found) / expect))
+		print('=>  Step {}, found classes for {} of {} drugs, {:.0%} coverage'.format(l+1, len(this_round), expect, len(found) / expect))
 	
 	print('->  VA class mapping complete')
 
@@ -382,5 +382,6 @@ def runImport(doc_handler=None):
 
 if '__main__' == __name__:
 	logging.basicConfig(level=logging.INFO)
-	print('->  Running linking without document handler, meaning no RxNorm document will be stored')
+	logging.warn('''  Running linking without document handler, meaning no RxNorm document will be stored.
+               Adjust and run `rxnorm_link_run.sh` for more control.''')
 	runImport()

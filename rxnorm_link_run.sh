@@ -3,7 +3,7 @@
 # to make it simple we include the variables here instead of creating yet another file
 
 # export type, supported are "csv" and "mongo" so far
-export EXPORT_TYPE='csv'
+export EXPORT_TYPE=
 
 # MongoDB parameters
 export MONGO_HOST='localhost'
