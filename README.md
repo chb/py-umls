@@ -10,8 +10,8 @@ Update the Documentation
 4. In a second clone, check out `gh-pages` branch
 5. Copy all content from the master branch's `docs/_build/html` directory into the gh-pages branch (and clean up the _sources directory):
 
-		cp -R py-umls/docs/_build/html/* py-umls-pages/
-		rm -rf py-umls-pages/_sources/
+		rsync -a py-umls/docs/_build/html/ py-umls-pages/
+        rm -rf py-umls-pages/_sources/
         rm py-umls-pages/objects.inv
 
 6. Commit and push

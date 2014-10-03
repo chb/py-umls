@@ -57,7 +57,7 @@
 <span class="target" id="module-rxnorm"></span><dl class="class">
 <dt id="rxnorm.RxNorm">
 <em class="property">class </em><tt class="descclassname">rxnorm.</tt><tt class="descname">RxNorm</tt><a class="headerlink" href="#rxnorm.RxNorm" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
 <p>A class for handling RxNorm in an SQLite database and performing a
 handful of RxNorm-related tasks.</p>
 <dl class="classmethod">
@@ -79,17 +79,15 @@ first identifies the format (e.g. &#8220;6-3-2&#8221;) and then normalizes based
 that finding. However since the normalized string is always 5-4-2,
 padded with leading zeroes and removing all dashes afterwards, this
 implementation goes a much simpler route.</p>
+<p>NDCs that only contain one dash are treated as if they were missing the
+package specifier, so they get a &#8220;-00&#8221; appended before normalization.</p>
 <table class="docutils field-list" frame="void" rules="none">
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Todo:</th><td class="field-body">TODO: There are quite a lot of NDCs with format 6-4 in the
-RxNorm database, those are not covered by the pseoudocode and would
-thus be invalid. For now we return those unaltered.</td>
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>ndc</strong> (<em>str</em>) &#8211; The NDC to normalize as string</td>
 </tr>
-<tr class="field-even field"><th class="field-name">Parameters:</th><td class="field-body"><strong>ndc</strong> (<em>str</em>) &#8211; The NDC to normalize as string</td>
-</tr>
-<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">A string with the normalized NDC, or <cite>None</cite> if the number
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">A string with the normalized NDC, or <cite>None</cite> if the number
 couldn&#8217;t be normalized</td>
 </tr>
 </tbody>
@@ -124,7 +122,7 @@ couldn&#8217;t be normalized</td>
 
 <dl class="attribute">
 <dt id="rxnorm.RxNormCUI.rxlookup">
-<tt class="descname">rxlookup</tt><em class="property"> = &lt;rxnorm.RxNormLookup object at 0x1023c3250&gt;</em><a class="headerlink" href="#rxnorm.RxNormCUI.rxlookup" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">rxlookup</tt><em class="property"> = &lt;rxnorm.RxNormLookup object at 0x10d839550&gt;</em><a class="headerlink" href="#rxnorm.RxNormCUI.rxlookup" title="Permalink to this definition">¶</a></dt>
 <dd></dd></dl>
 
 <dl class="attribute">
@@ -163,7 +161,7 @@ couldn&#8217;t be normalized</td>
 <dl class="class">
 <dt id="rxnorm.RxNormLookup">
 <em class="property">class </em><tt class="descclassname">rxnorm.</tt><tt class="descname">RxNormLookup</tt><a class="headerlink" href="#rxnorm.RxNormLookup" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
 <p>Class for RxNorm lookup.</p>
 <dl class="attribute">
 <dt id="rxnorm.RxNormLookup.cache_drug_class">
@@ -205,6 +203,23 @@ display.</p>
 <tt class="descname">lookup_related</tt><big>(</big><em>rxcui</em>, <em>relation=None</em>, <em>to_rxcui=None</em><big>)</big><a class="headerlink" href="#rxnorm.RxNormLookup.lookup_related" title="Permalink to this definition">¶</a></dt>
 <dd><p>Returns a set of tuples containing the RXCUI and the actual relation
 for the desired relation, or all if the relation is not specified.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>rxcui</strong> (<em>str</em>) &#8211; The RXCUI for which to look up relations</li>
+<li><strong>relation</strong> (<em>str</em>) &#8211; Optional: the type of the relation, e.g. &#8220;has_ingredient&#8221;</li>
+<li><strong>to_rxcui</strong> (<em>str</em>) &#8211; An optional second rxcui, to return all relations
+between the two given rxcuis. Ignored if <cite>relation</cite> is present.</li>
+</ul>
+</td>
+</tr>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">A set of tuples, where tuples are (rxcui, rela)</p>
+</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="method">
@@ -242,7 +257,7 @@ There is currently NO SUPPORT FOR preferred = False</p>
 
 <dl class="method">
 <dt id="rxnorm.RxNormLookup.rxcui_for_name">
-<tt class="descname">rxcui_for_name</tt><big>(</big><em>name</em><big>)</big><a class="headerlink" href="#rxnorm.RxNormLookup.rxcui_for_name" title="Permalink to this definition">¶</a></dt>
+<tt class="descname">rxcui_for_name</tt><big>(</big><em>name</em>, <em>limit_tty=None</em><big>)</big><a class="headerlink" href="#rxnorm.RxNormLookup.rxcui_for_name" title="Permalink to this definition">¶</a></dt>
 <dd><p>Tries to find an RXCUI for the concept name.</p>
 <p>Does this by performing a &#8220;starts with&#8221; against the STR column on
 RXNCONSO, then replaces any spaces with wildcards and finally chops off
@@ -254,9 +269,14 @@ RXCUI using that service.</p>
 <col class="field-name" />
 <col class="field-body" />
 <tbody valign="top">
-<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>name</strong> (<em>str</em>) &#8211; The name to get an RXCUI for</td>
+<tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><ul class="first simple">
+<li><strong>name</strong> (<em>str</em>) &#8211; The name to get an RXCUI for</li>
+<li><strong>limit_tty</strong> (<em>list</em>) &#8211; Optional: limit search to a given list of TTYs</li>
+</ul>
+</td>
 </tr>
-<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">The best matching rxcui, if any, as string</td>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body"><p class="first last">The best matching rxcui, if any, as string</p>
+</td>
 </tr>
 </tbody>
 </table>
@@ -291,7 +311,7 @@ use normalized NDC formats.</p>
 <tbody valign="top">
 <tr class="field-odd field"><th class="field-name">Parameters:</th><td class="field-body"><strong>ndc</strong> (<em>str</em>) &#8211; The NDC to look up</td>
 </tr>
-<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">The matching RXCUI as string or None</td>
+<tr class="field-even field"><th class="field-name">Returns:</th><td class="field-body">The matching RXCUI as string, or None</td>
 </tr>
 </tbody>
 </table>
@@ -337,85 +357,6 @@ default</li>
 <div class="section" id="rxnorm-link">
 <h2>rxnorm_link<a class="headerlink" href="#rxnorm-link" title="Permalink to this headline">¶</a></h2>
 <p>A script used to create JSON documents from most RxNorm concepts and store them into a NoSQL database. This is very much WiP!</p>
-<span class="target" id="module-rxnorm_link"></span><dl class="function">
-<dt id="rxnorm_link.doQ">
-<tt class="descclassname">rxnorm_link.</tt><tt class="descname">doQ</tt><big>(</big><em>rxhandle</em>, <em>q</em>, <em>p</em><big>)</big><a class="headerlink" href="#rxnorm_link.doQ" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="function">
-<dt id="rxnorm_link.initVA">
-<tt class="descclassname">rxnorm_link.</tt><tt class="descname">initVA</tt><big>(</big><em>rxhandle</em><big>)</big><a class="headerlink" href="#rxnorm_link.initVA" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="function">
-<dt id="rxnorm_link.runImport">
-<tt class="descclassname">rxnorm_link.</tt><tt class="descname">runImport</tt><big>(</big><em>db_host=None</em>, <em>db_port=None</em>, <em>db_user=None</em>, <em>db_pass=None</em>, <em>db_name=None</em>, <em>db_bucket='rxnorm'</em><big>)</big><a class="headerlink" href="#rxnorm_link.runImport" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="function">
-<dt id="rxnorm_link.storeVAs">
-<tt class="descclassname">rxnorm_link.</tt><tt class="descname">storeVAs</tt><big>(</big><em>rxhandle</em>, <em>rxcui</em>, <em>vas</em>, <em>level=0</em><big>)</big><a class="headerlink" href="#rxnorm_link.storeVAs" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="function">
-<dt id="rxnorm_link.toBrandAndGeneric">
-<tt class="descclassname">rxnorm_link.</tt><tt class="descname">toBrandAndGeneric</tt><big>(</big><em>rxhandle</em>, <em>rxcuis</em>, <em>tty</em><big>)</big><a class="headerlink" href="#rxnorm_link.toBrandAndGeneric" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="function">
-<dt id="rxnorm_link.toComponents">
-<tt class="descclassname">rxnorm_link.</tt><tt class="descname">toComponents</tt><big>(</big><em>rxhandle</em>, <em>rxcuis</em>, <em>tty</em><big>)</big><a class="headerlink" href="#rxnorm_link.toComponents" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="function">
-<dt id="rxnorm_link.toDrugClasses">
-<tt class="descclassname">rxnorm_link.</tt><tt class="descname">toDrugClasses</tt><big>(</big><em>rxhandle</em>, <em>rxcui</em><big>)</big><a class="headerlink" href="#rxnorm_link.toDrugClasses" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="function">
-<dt id="rxnorm_link.toIngredients">
-<tt class="descclassname">rxnorm_link.</tt><tt class="descname">toIngredients</tt><big>(</big><em>rxhandle</em>, <em>rxcuis</em>, <em>tty</em><big>)</big><a class="headerlink" href="#rxnorm_link.toIngredients" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="function">
-<dt id="rxnorm_link.toIngredients_helper">
-<tt class="descclassname">rxnorm_link.</tt><tt class="descname">toIngredients_helper</tt><big>(</big><em>rxhandle</em>, <em>rxcui</em>, <em>tty</em><big>)</big><a class="headerlink" href="#rxnorm_link.toIngredients_helper" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="function">
-<dt id="rxnorm_link.toMechanism">
-<tt class="descclassname">rxnorm_link.</tt><tt class="descname">toMechanism</tt><big>(</big><em>rxhandle</em>, <em>rxcuis</em>, <em>tty</em><big>)</big><a class="headerlink" href="#rxnorm_link.toMechanism" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="function">
-<dt id="rxnorm_link.toMechanism_helper">
-<tt class="descclassname">rxnorm_link.</tt><tt class="descname">toMechanism_helper</tt><big>(</big><em>rxhandle</em>, <em>rxcui</em>, <em>tty</em><big>)</big><a class="headerlink" href="#rxnorm_link.toMechanism_helper" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="function">
-<dt id="rxnorm_link.toTreatmentIntents">
-<tt class="descclassname">rxnorm_link.</tt><tt class="descname">toTreatmentIntents</tt><big>(</big><em>rxhandle</em>, <em>rxcuis</em>, <em>tty</em><big>)</big><a class="headerlink" href="#rxnorm_link.toTreatmentIntents" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="function">
-<dt id="rxnorm_link.toTreatmentIntents_helper">
-<tt class="descclassname">rxnorm_link.</tt><tt class="descname">toTreatmentIntents_helper</tt><big>(</big><em>rxhandle</em>, <em>rxcui</em>, <em>tty</em><big>)</big><a class="headerlink" href="#rxnorm_link.toTreatmentIntents_helper" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="function">
-<dt id="rxnorm_link.traverseVA">
-<tt class="descclassname">rxnorm_link.</tt><tt class="descname">traverseVA</tt><big>(</big><em>rxhandle</em>, <em>rounds=3</em>, <em>expect=203175</em><big>)</big><a class="headerlink" href="#rxnorm_link.traverseVA" title="Permalink to this definition">¶</a></dt>
-<dd><p>Drug classes are set for a couple of different TTYs, it seems however
-most consistently to be defined on CD, SCD and AB TTYs.
-We cache the classes in va_cache and loop over rxcuis with known classes,
-applying the known classes to certain relationships.</p>
-</dd></dl>
-
-<dl class="function">
-<dt id="rxnorm_link.walkVAs">
-<tt class="descclassname">rxnorm_link.</tt><tt class="descname">walkVAs</tt><big>(</big><em>rxhandle</em>, <em>rxcui</em>, <em>vas</em>, <em>mapping</em>, <em>at_level=0</em><big>)</big><a class="headerlink" href="#rxnorm_link.walkVAs" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
 </div>
 <div class="section" id="rxnorm-graph">
 <h2>rxnorm_graph<a class="headerlink" href="#rxnorm-graph" title="Permalink to this headline">¶</a></h2>
@@ -428,7 +369,7 @@ Just run this script in your command line and follow the leader.</p>
 <span class="target" id="module-umls"></span><dl class="class">
 <dt id="umls.UMLS">
 <em class="property">class </em><tt class="descclassname">umls.</tt><tt class="descname">UMLS</tt><a class="headerlink" href="#umls.UMLS" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
 <p>A class for importing UMLS terminologies into an SQLite database.</p>
 <dl class="classmethod">
 <dt id="umls.UMLS.check_database">
@@ -444,7 +385,7 @@ If missing prompt to use the <cite>umls.sh</cite> script</p>
 <dl class="class">
 <dt id="umls.UMLSLookup">
 <em class="property">class </em><tt class="descclassname">umls.</tt><tt class="descname">UMLSLookup</tt><a class="headerlink" href="#umls.UMLSLookup" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
 <p>UMLS lookup</p>
 <dl class="attribute">
 <dt id="umls.UMLSLookup.did_check_dbs">
@@ -463,6 +404,29 @@ The &#8220;preferred&#8221; settings has the effect that only names from SNOMED
 (SNOMEDCD) and the Metathesaurus (MTH) will be reported. A lookup in
 our &#8220;descriptions&#8221; table is much faster than combing through the full
 MRCONSO table.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">A list of triples with (name, sab, sty)</td>
+</tr>
+</tbody>
+</table>
+</dd></dl>
+
+<dl class="method">
+<dt id="umls.UMLSLookup.lookup_code_for_name">
+<tt class="descname">lookup_code_for_name</tt><big>(</big><em>name</em>, <em>preferred=True</em><big>)</big><a class="headerlink" href="#umls.UMLSLookup.lookup_code_for_name" title="Permalink to this definition">¶</a></dt>
+<dd><p>Tries to find a good concept code for the given concept name.</p>
+<p>Uses our indexed <cite>descriptions</cite> table.</p>
+<table class="docutils field-list" frame="void" rules="none">
+<col class="field-name" />
+<col class="field-body" />
+<tbody valign="top">
+<tr class="field-odd field"><th class="field-name">Returns:</th><td class="field-body">A list of triples with (cui, sab, sty)</td>
+</tr>
+</tbody>
+</table>
 </dd></dl>
 
 <dl class="method">
@@ -495,7 +459,7 @@ MRCONSO table.</p>
 <span class="target" id="module-snomed"></span><dl class="class">
 <dt id="snomed.SNOMED">
 <em class="property">class </em><tt class="descclassname">snomed.</tt><tt class="descname">SNOMED</tt><a class="headerlink" href="#snomed.SNOMED" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
 <p>A class for importing UMLS terminologies into an SQLite database.</p>
 <dl class="classmethod">
 <dt id="snomed.SNOMED.check_database">
@@ -558,7 +522,7 @@ Does nothing if the tables/indexes already exist</p>
 <dl class="class">
 <dt id="snomed.SNOMEDLookup">
 <em class="property">class </em><tt class="descclassname">snomed.</tt><tt class="descname">SNOMEDLookup</tt><a class="headerlink" href="#snomed.SNOMEDLookup" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
 <p>SNOMED lookup</p>
 <dl class="method">
 <dt id="snomed.SNOMEDLookup.lookup_code_meaning">
@@ -581,7 +545,7 @@ The &#8220;preferred&#8221; flag here currently has no function.</p>
 <span class="target" id="module-graphable"></span><dl class="class">
 <dt id="graphable.DotContext">
 <em class="property">class </em><tt class="descclassname">graphable.</tt><tt class="descname">DotContext</tt><big>(</big><em>max_depth=None</em>, <em>max_width=None</em><big>)</big><a class="headerlink" href="#graphable.DotContext" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
 <dl class="method">
 <dt id="graphable.DotContext.announce">
 <tt class="descname">announce</tt><big>(</big><em>obj</em><big>)</big><a class="headerlink" href="#graphable.DotContext.announce" title="Permalink to this definition">¶</a></dt>
@@ -627,7 +591,7 @@ The &#8220;preferred&#8221; flag here currently has no function.</p>
 <dl class="class">
 <dt id="graphable.GraphableObject">
 <em class="property">class </em><tt class="descclassname">graphable.</tt><tt class="descname">GraphableObject</tt><big>(</big><em>name</em>, <em>label=None</em><big>)</big><a class="headerlink" href="#graphable.GraphableObject" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
 <dl class="method">
 <dt id="graphable.GraphableObject.announce_to">
 <tt class="descname">announce_to</tt><big>(</big><em>dot_context</em>, <em>via=None</em><big>)</big><a class="headerlink" href="#graphable.GraphableObject.announce_to" title="Permalink to this definition">¶</a></dt>
@@ -728,7 +692,7 @@ instances here (but NOT deliver them) but ONLY IF &#8220;is_leaf&#8221; is not T
 <dl class="class">
 <dt id="graphable.GraphvizGraphic">
 <em class="property">class </em><tt class="descclassname">graphable.</tt><tt class="descname">GraphvizGraphic</tt><big>(</big><em>out_file='rxgraph.png'</em><big>)</big><a class="headerlink" href="#graphable.GraphvizGraphic" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
 <dl class="attribute">
 <dt id="graphable.GraphvizGraphic.cmd">
 <tt class="descname">cmd</tt><em class="property"> = 'dot'</em><a class="headerlink" href="#graphable.GraphvizGraphic.cmd" title="Permalink to this definition">¶</a></dt>
@@ -776,9 +740,28 @@ instances here (but NOT deliver them) but ONLY IF &#8220;is_leaf&#8221; is not T
 <h2>sqlite<a class="headerlink" href="#sqlite" title="Permalink to this headline">¶</a></h2>
 <p>Our SQLite connection class.</p>
 <span class="target" id="module-sqlite"></span><dl class="class">
+<dt id="sqlite.CSVImporter">
+<em class="property">class </em><tt class="descclassname">sqlite.</tt><tt class="descname">CSVImporter</tt><big>(</big><em>csv_path</em>, <em>tablename='rows'</em><big>)</big><a class="headerlink" href="#sqlite.CSVImporter" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
+<p>A simple CSV to SQLite importer class.</p>
+<p>Expects a CSV file with a header row, will create a table reflecting the
+header row and import all rows.</p>
+<dl class="method">
+<dt id="sqlite.CSVImporter.import_to">
+<tt class="descname">import_to</tt><big>(</big><em>dbpath</em>, <em>csv_format='excel'</em><big>)</big><a class="headerlink" href="#sqlite.CSVImporter.import_to" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="method">
+<dt id="sqlite.CSVImporter.sqlite_handle">
+<tt class="descname">sqlite_handle</tt><big>(</big><em>dbpath</em><big>)</big><a class="headerlink" href="#sqlite.CSVImporter.sqlite_handle" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="class">
 <dt id="sqlite.SQLite">
 <em class="property">class </em><tt class="descclassname">sqlite.</tt><tt class="descname">SQLite</tt><big>(</big><em>database=None</em><big>)</big><a class="headerlink" href="#sqlite.SQLite" title="Permalink to this definition">¶</a></dt>
-<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">builtins.object</span></tt></p>
+<dd><p>Bases: <tt class="xref py py-class docutils literal"><span class="pre">object</span></tt></p>
 <p>SQLite access</p>
 <dl class="method">
 <dt id="sqlite.SQLite.close">
