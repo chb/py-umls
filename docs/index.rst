@@ -9,7 +9,8 @@ py-umls
 This is the documentation for `py-umls` (https://github.com/chb/py-umls), a simple Python 3 library that helps deal with RxNorm, SNOMED and UMLS resources.
 Development is ongoing, based on the needs of the developer, and documentation is sparse at best.
 
-This modules creates **SQLite** databases from UMLS downloads. The scripts that perform this task can be found in the `databases` directory.
+This modules creates **SQLite** databases from UMLS downloads.
+The scripts that perform this task can be found in the `databases` directory.
 
 Contents:
 
