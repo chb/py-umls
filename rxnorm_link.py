@@ -130,9 +130,9 @@ def initVA(rxhandle):
 	# SELECT DISTINCT tty, COUNT(tty) FROM rxnsat LEFT JOIN rxnconso AS r USING (rxcui) WHERE atn = "VA_CLASS_NAME" GROUP BY tty;
 	rxhandle.execute('DROP TABLE IF EXISTS va_cache')
 	rxhandle.execute('''CREATE TABLE va_cache
-						(rxcui varchar UNIQUE, va text, level int)''')
+						(rxcui varchar UNIQUE, va text, from_rxcui varchar, rela varchar, level int)''')
 	rxhandle.execute('''INSERT OR IGNORE INTO va_cache
-						SELECT rxcui, atv, 0 FROM rxnsat
+						SELECT rxcui, atv, null, null, 0 FROM rxnsat
 						WHERE atn = "VA_CLASS_NAME"''')
 	rxhandle.sqlite.commit()
 
@@ -146,45 +146,49 @@ def traverseVA(rxhandle, rounds=3, expect=203175):
 	
 	mapping = {
 		'CD': [
-			'has_tradename',			# > BD, SDB, ...
-			'contained_in',				# > BPCK
-			'consists_of',				# > SCDC
-			'quantified_form',			# > SBD
+			'has_tradename',			# > BD, SBD, ... ; tiny impact on step 2, compensated for in steps 3+
+			'contained_in',				# > BPCK; tiny impact in step 2, compansated for in steps 3+
+			'consists_of',				# > SCDC; big impact step 2+, starting to be compensated for in steps 5+; NOT IDEAL
+			#'quantified_form',			# > SBD; no impact
 		],
 		'GPCK': [
-			'has_tradename',			# > BPCK
+			'has_tradename',			# > BPCK; small impact step 3
 		],
 		
 		'SBD': [
-			'isa',						# > SBDG
-			'has_ingredient',			# > BN
-			'tradename_of',				# > SCD
-			'consists_of',				# > SBDC
+			'isa',						# > SBDF; big impact step 2+, increasingly important (58% vs 75% coverage after step 5)
+			'has_ingredient',			# > BN; small impact step 2+
+			'tradename_of',				# > SCD; tiny impact step 2, fully compensated by step 4
+			'consists_of',				# > SBDC; small impact step 4+
 		],
 		'SBDF': [
-			'tradename_of',				# > SCDF
-			'has_ingredient',
+			#'tradename_of',			# > SCDF; no impact
+			'has_ingredient',			# > BN; tiny impact step 2+
+			#'inverse_isa',				# > SBD; no impact
 		],
 		'SBDG': [
-			'has_ingredient',			# > BN
-			'tradename_of',				# > SCDG
+			'has_ingredient',			# > BN; tiny impact step 2+
+			#'tradename_of',			# > SCDG; no impact
+		],
+		'SBDC': [
+			'tradename_of',				# > SCDC; tiny impact step 3, compensated by step 5
 		],
 		
 		'SCD': [
-			'isa',						# > SCDF
-			'has_quantified_form',		# > SCD
-			'contained_in',				# > GPCK
-			'has_tradename',			# > SBD
+			'isa',						# > SCDF; big impact step 2+, not compensated (59% vs 75% coverage after step 5)
+			'has_quantified_form',		# > SCD; tiny impact step 2, fully compensated in step 3
+			'contained_in',				# > GPCK; tiny impact steps 4+
+			'has_tradename',			# > SBD; small impact steps 3+
 		],
 		'SCDC': [
-			'constitutes',				# > SCD
-			'has_tradename',			# > SBDC
+			'constitutes',				# > SCD; big impact steps 3+ (63% vs 75% coverage after step 5)
+			'has_tradename',			# > SBDC; impact in step 3, partially compensated in step 4
 		],
 		'SCDF': [
-			'inverse_isa',				# > SCD
+			'inverse_isa',				# > SCD; large impact steps 3+
 		],
 		'SCDG': [
-			'tradename_of',				# > SBDG
+			#'tradename_of',			# > SBDG; no impact
 		]
 	}
 	
@@ -210,7 +214,7 @@ def traverseVA(rxhandle, rounds=3, expect=203175):
 		
 		# commit after every round
 		rxhandle.sqlite.commit()
-		print('=>  Step {}, found classes for {} of {} drugs, {:.0%} coverage'.format(l+1, len(this_round), expect, len(found) / expect))
+		print('=>  Step {}, found classes for {} of {} drugs, {:.2%} coverage'.format(l+1, len(this_round), expect, len(found) / expect))
 	
 	print('->  VA class mapping complete')
 
@@ -236,9 +240,9 @@ def seekRelAndStoreSameVAs(rxhandle, rxcui, vas, mapping, at_level=0):
 	rel_sql = 'SELECT DISTINCT rxcui1, rela FROM rxnrel WHERE rxcui2 = ?'
 	for res in rxhandle.fetchAll(rel_sql, [rxcui]):
 		if res[1] in desired_relas:
-			storeVAs(rxhandle, res[0], vas, at_level+1)
+			storeVAs(rxhandle, res[0], vas, rxcui, res[1], at_level+1)
 
-def storeVAs(rxhandle, rxcui, vas, level=0):
+def storeVAs(rxhandle, rxcui, vas, from_rxcui, via_rela, level=0):
 	""" Stores the drug classes `vas` for the given concept id, checking first
 	if that concept already has classes and updating the set.
 	"""
@@ -260,9 +264,9 @@ def storeVAs(rxhandle, rxcui, vas, level=0):
 		vas |= exist_vas
 	
 	# new, insert
-	ins_sql = 'INSERT OR REPLACE INTO va_cache (rxcui, va, level) VALUES (?, ?, ?)'
+	ins_sql = 'INSERT OR REPLACE INTO va_cache (rxcui, va, from_rxcui, rela, level) VALUES (?, ?, ?, ?, ?)'
 	ins_val = '|'.join(vas)
-	rxhandle.execute(ins_sql, (rxcui, ins_val, level))
+	rxhandle.execute(ins_sql, (rxcui, ins_val, from_rxcui, via_rela, level))
 
 def toDrugClasses(rxhandle, rxcui):
 	sql = 'SELECT va FROM va_cache WHERE rxcui = ?'
