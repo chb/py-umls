@@ -38,7 +38,12 @@ class RxNorm (object):
 		if not os.path.exists(rxnorm_db):
 			raise Exception("The RxNorm database at {} does not exist. Run the import script `databases/rxnorm.sh`."
 				.format(os.path.abspath(rxnorm_db)))
-	
+
+	@classmethod
+	def ndc_normalize_list(cls, ndc_list):
+		ndc_set = set([cls.ndc_normalize(ndc) for ndc in ndc_list])
+		return list(ndc_set)
+		
 	@classmethod
 	def ndc_normalize(cls, ndc):
 		""" Normalizes an NDC (National Drug Code) number.
@@ -52,6 +57,7 @@ class RxNorm (object):
 		
 		NDCs that only contain one dash are treated as if they were missing the
 		package specifier, so they get a "-00" appended before normalization.
+
 		
 		:param str ndc: The NDC to normalize as string
 		:returns: A string with the normalized NDC, or `None` if the number
@@ -235,17 +241,8 @@ class RxNormLookup (object):
 		if rxcui is None:
 			return None
 		
-		rxcuis = {}
-		sql = 'SELECT ndc FROM ndc WHERE rxcui = ?'
-		for res in self.sqlite.execute(sql, (rxcui,)):
-			rxcuis[res[0]] = rxcuis.get(res[0], 0) + 1
-		
-		rxcui = list(rxcuis.keys())[0] if len(rxcuis) > 0 else None
-		if len(rxcuis) > 1:
-			popular = OrderedDict(Counter(rxcuis).most_common())
-			rxcui = popular.popitem(False)[0]
-		
-		return str(rxcui) if rxcui is not None else None
+		sql = 'SELECT distinct ndc FROM ndc WHERE rxcui = ?'
+		return [res[0] for res in self.sqlite.execute(sql, (rxcui,))]
 	
 	def rxcui_for_name(self, name, limit_tty=None):
 		""" Tries to find an RXCUI for the concept name.

@@ -324,7 +324,7 @@ def runImport(doc_handler=None):
 		params.extend(drug_types)
 		label = rxhandle.lookup_rxcui_name(res[0])				# fast (indexed column)
 		ndc = rxhandle.ndc_for_rxcui(res[0])					# fast (indexed column)
-		ndc = RxNorm.ndc_normalize(ndc)							# fast (string permutation)
+		ndc = RxNorm.ndc_normalize_list(ndc)			        # fast (string permutation)
 		
 		# find ingredients, drug classes and more
 		ingr = toIngredients(rxhandle, [res[0]], res[1])		# rather slow
@@ -340,8 +340,8 @@ def runImport(doc_handler=None):
 			'tty': res[1],
 			'label': label,
 		}
-		if ndc:
-			d['ndc'] = ndc
+		if len(ndc) > 0:
+			d['ndc'] = list(ndc)
 		
 		if len(ingr) > 0:
 			d['ingredients'] = list(ingr)
