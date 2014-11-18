@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 #
 #	Run this script to perform the RxNorm linking process and store the
-#	documents in a NoSQL server.
+#	documents in a database or flat file.
 
 import os
 import sys
@@ -34,6 +34,76 @@ class DebugDocHandler(DocHandler):
 	
 	def __str__(self):
 		return "Debug logger"
+
+
+class SQLiteDocHandler(DocHandler):
+	""" Handles documents for storage in sqlite3
+	"""
+	
+	def __init__(self):
+		super().__init__()
+		from sqlite import SQLite
+		absolute = os.path.dirname(os.path.realpath(__file__))
+		db_file = os.environ.get('SQLITE_FILE')
+		db_file = db_file if db_file else os.path.join(absolute, 'databases/rxnorm.db')
+		self.db_file = db_file
+		self.handled = 0
+
+		self.sqlite = SQLite.get(self.db_file)
+		self.sqlite.execute('DROP TABLE IF EXISTS drug_cache')
+
+		self.sqlite.execute('''CREATE TABLE drug_cache
+						(rxcui varchar, property text, value text)''')
+
+		self.sqlite.execute('CREATE INDEX i_drug_cache ON drug_cache (rxcui, property)')
+
+		self.sqlite.execute('DROP VIEW IF EXISTS drug_treatments_by_ndc')
+		self.sqlite.execute('''CREATE VIEW drug_treatments_by_ndc as
+				select a.value as ndc, b.value as treatment_intent
+				from drug_cache a join drug_cache b on a.rxcui=b.rxcui
+				where a.property='ndc' and b.property='treatment_intent'
+				''')
+
+		self.sqlite.execute('DROP VIEW IF EXISTS drug_classes_by_ndc')
+		self.sqlite.execute('''CREATE VIEW drug_classes_by_ndc as
+				select a.value as ndc, b.value as drug_class
+				from drug_cache a join drug_cache b on a.rxcui=b.rxcui
+				where a.property='ndc' and b.property='drug_class'
+				''')
+
+		self.sqlite.execute('DROP VIEW IF EXISTS drug_ingredients_by_ndc')
+		self.sqlite.execute('''CREATE VIEW drug_ingredients_by_ndc as
+				select a.value as ndc, b.value as drug_ingredient, c.str as ingredient_name
+				from drug_cache a join drug_cache b on a.rxcui=b.rxcui
+				join RXNCONSO c on c.rxcui=b.value
+				where a.property='ndc' and b.property='ingredient'
+				and c.sab='RXNORM' and c.tty='IN'
+                ''')
+	def addDocument(self, doc):
+		rxcui =  doc.get('rxcui', '0')
+		fields = {
+			'tty': doc.get('tty', None),
+			'ndc': doc.get('ndc', None),
+			'label': doc.get('label', None),
+			'drug_class': doc.get('drugClasses', None),
+			'treatment_intent': doc.get('treatmentIntents', None),
+			'ingredient': doc.get('ingredients', None)
+			}
+		for k, v in fields.items():
+			if not v: continue
+			v = v if isinstance(v, list) else [v]
+			for vv in v:
+				self.sqlite.execute(
+					'INSERT INTO drug_cache(rxcui, property, value) values(?, ?, ?)',
+					(rxcui, k, vv))
+		self.handled += 1
+		if (self.handled % 50 == 0): self.sqlite.commit()
+		
+	def finalize(self): 
+		self.sqlite.commit()
+	
+	def __str__(self):
+		return "SQLite import {}".format(self.db_file)
 
 
 class MongoDocHandler(DocHandler):
@@ -126,6 +196,8 @@ if '__main__' == __name__:
 				raise Exception('Couchbase not implemented')
 			elif 'csv' == ex_type:
 				handler = CSVHandler()
+			elif 'sqlite' == ex_type:
+				handler = SQLiteDocHandler()
 			else:
 				raise Exception('Unsupported export type: {}'.format(ex_type))
 		except Exception as e:

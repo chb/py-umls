@@ -2,7 +2,7 @@
 
 # to make it simple we include the variables here instead of creating yet another file
 
-# export type, supported are "csv" and "mongo" so far
+# export type, supported are "csv" and "mongo" and "sqlte" so far
 export EXPORT_TYPE=
 
 # MongoDB parameters
@@ -12,6 +12,9 @@ export MONGO_USER=
 export MONGO_PASS=
 export MONGO_DB=
 export MONGO_BUCKET='rxnorm'
+
+# SQLite parameters
+export SQLITE_FILE='databases/rxnorm.db'
 
 # TODO: add a Couchbase version
 
