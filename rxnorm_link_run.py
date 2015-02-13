@@ -136,7 +136,7 @@ class MongoDocHandler(DocHandler):
 	
 	def addDocument(self, doc):
 		super().addDocument(doc)
-		if 0 == len(self.documents) % 50:
+		if len(self.documents) > 50:
 			self._insertAndClear()
 	
 	def finalize(self):

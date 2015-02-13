@@ -113,7 +113,8 @@ class RxNormLookup (object):
 		self.sqlite = SQLite.get(os.path.join(absolute, 'databases/rxnorm.db'))
 	
 	
-	# -------------------------------------------------------------------------- "name" lookup
+	# MARK: - "name" lookup
+	
 	def lookup_rxcui(self, rxcui, preferred=True):
 		""" Return a tuple with (str, tty, rxcui, rxaui) or - if "preferred" is
 		False - a tuple with (preferred-name, list-of-tuples)
@@ -129,7 +130,7 @@ class RxNormLookup (object):
 			found.append(res)
 		
 		if 0 == len(found):
-			raise Exception("RXCUI {} not found".format(rxcui))
+			logging.error("RxNormLookup.lookup_rxcui: RxCUI {} not found".format(rxcui))
 			return None
 		
 		# preferred name
@@ -155,7 +156,7 @@ class RxNormLookup (object):
 		"""
 		
 		res = self.lookup_rxcui(rxcui, preferred=True)
-		if rxcui is None:
+		if res is None:
 			return ''
 		
 		if no_html:
@@ -166,7 +167,8 @@ class RxNormLookup (object):
 		return str_format.format(*res)
 	
 	
-	# -------------------------------------------------------------------------- Relations
+	# MARK: - Relations
+	
 	def lookup_tty(self, rxcui):
 		""" Returns a set of TTYs for the given RXCUI. """
 		if rxcui is None:
@@ -209,7 +211,8 @@ class RxNormLookup (object):
 		return found
 	
 	
-	# -------------------------------------------------------------------------- RxCUI
+	# MARK: - RxCUI
+	
 	def rxcui_for_ndc(self, ndc):
 		""" Find the RXCUI for the given NDC from our NDC-cache-table.
 		
@@ -332,7 +335,8 @@ class RxNormLookup (object):
 		return rxcuis
 	
 	
-	# -------------------------------------------------------------------------- Drug Class OBSOLETE, WILL BE GONE
+	# MARK: - Drug Class OBSOLETE, WILL BE GONE
+	
 	def can_cache(self):
 		return self.sqlite.hasTable('va_cache')
 	
@@ -379,7 +383,8 @@ class RxNormLookup (object):
 		return va_name
 	
 	
-	# -------------------------------------------------------------------------- Bare Metal
+	# MARK: - Bare Metal
+	
 	def execute(self, sql, params=()):
 		""" Execute and return the pointer of an SQLite execute() query. """
 		return self.sqlite.execute(sql, params)
