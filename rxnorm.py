@@ -5,10 +5,7 @@
 #
 #	2014-01-28	Extracted from UMLS.py
 
-import sys
 import os.path
-sys.path.insert(0, os.path.dirname(__file__))
-
 import logging
 import re
 import requests

@@ -5,6 +5,12 @@
 #
 #	2014-04-18	Created
 
+import sys
+import os.path
+thismodule = os.path.abspath(os.path.dirname(__file__))
+if thismodule not in sys.path:
+	sys.path.insert(0, thismodule)
+
 import unittest
 from rxnorm import RxNorm
 
