@@ -210,11 +210,11 @@ def traverseVA(rxhandle, rounds=3, expect=203175):
 			
 			# progress report
 			i += 1
-			print('->  Step {}  {:.1%}'.format(l+1, i / num_drugs), end="\r")
+			print('-->  Step {}  {:.1%}'.format(l+1, i / num_drugs), end="\r")
 		
 		# commit after every round
 		rxhandle.sqlite.commit()
-		print('=>  Step {}, found classes for {} of {} drugs, {:.2%} coverage'.format(l+1, len(this_round), expect, len(found) / expect))
+		print('==>  Step {}, found classes for {} of {} drugs, {:.2%} coverage'.format(l+1, len(this_round), expect, len(found) / expect))
 	
 	print('->  VA class mapping complete')
 
@@ -371,17 +371,17 @@ def runImport(doc_handler=None):
 		if doc_handler:
 			doc_handler.addDocument(d)
 		
-		# log progress every 5 seconds or so
-		if (datetime.now() - last_report).seconds > 5:
+		# log progress every 2 seconds or so
+		if (datetime.now() - last_report).seconds > 2:
 			last_report = datetime.now()
-			print('->  {:.1%}   n: {}, ti: {}, va: {}, either: {}'.format(i / num_drugs, i, w_ti, w_va, w_either), end="\r")
+			print('-->  {:.1%}   n: {}, ti: {}, va: {}, either: {}'.format(i / num_drugs, i, w_ti, w_va, w_either), end="\r")
 	
 	# loop done, finalize
 	if doc_handler:
 		doc_handler.finalize()
 	
-	print('->  {:.1%}   n: {}, ti: {}, va: {}, either: {}'.format(i / num_drugs, i, w_ti, w_va, w_either))
-	print('=>  Done')
+	print('-->  {:.1%}   n: {}, ti: {}, va: {}, either: {}'.format(i / num_drugs, i, w_ti, w_va, w_either))
+	print('->  Done')
 
 
 if '__main__' == __name__:

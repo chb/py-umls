@@ -132,9 +132,14 @@ class MongoDocHandler(DocHandler):
 		
 		self.mng = db[db_bucket]
 		self.mng.ensure_index('ndc')
-		self.mng.ensure_index('label')
+		self.mng.ensure_index('label', text=pymongo.TEXT)
 	
 	def addDocument(self, doc):
+		lbl = doc.get('label')
+		if lbl and len(lbl) > 1010:			# indexed, cannot be > 1024 in total
+			doc['fullLabel'] = lbl
+			doc['label'] = lbl[:1010]
+		
 		super().addDocument(doc)
 		if len(self.documents) > 50:
 			self._insertAndClear()
@@ -148,7 +153,7 @@ class MongoDocHandler(DocHandler):
 			self.documents.clear()
 	
 	def __str__(self):
-		return "MongoDB import {}".format(self.mng)
+		return "MongoDB at {}".format(self.mng)
 
 
 class CSVHandler(DocHandler):

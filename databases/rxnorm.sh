@@ -21,7 +21,7 @@ if [ ! -e rxnorm.db ]; then
 	if [ ! -e "$1/rrf/RXNREL.pipe" ]; then
 		current=$(pwd)
 		cd "$1/rrf"
-		echo "-> Converting RRF files for SQLite"
+		echo "->  Converting RRF files for SQLite"
 		for f in *.RRF; do
 			sed -e 's/.$//' -e 's/"//g' "$f" > "${f%RRF}pipe"
 		done
@@ -31,12 +31,12 @@ if [ ! -e rxnorm.db ]; then
 	# import tables
 	for f in "$1/rrf/"*.pipe; do
 		table=$(basename ${f%.pipe})
-		echo "-> Importing $table"
+		echo "->  Importing $table"
 		sqlite3 rxnorm.db ".import '$f' '$table'"
 	done
 	
 	# create an NDC table
-	echo "-> Creating extra tables"
+	echo "->  Creating extra tables"
 	# sqlite3 rxnorm.db "CREATE TABLE NDC AS SELECT RXCUI, ATV AS NDC FROM RXNSAT WHERE ATN = 'NDC';"	# we do it in 2 steps to create the primary index column
 	sqlite3 rxnorm.db "CREATE TABLE NDC (RXCUI INT, NDC VARCHAR);"
 	sqlite3 rxnorm.db "INSERT INTO NDC SELECT RXCUI, ATV FROM RXNSAT WHERE ATN = 'NDC';"
@@ -47,21 +47,21 @@ if [ ! -e rxnorm.db ]; then
 	sqlite3 rxnorm.db "CREATE INDEX X_FRIENDLY_CLASS_NAMES_VACODE ON FRIENDLY_CLASS_NAMES (VACODE);"
 	
 	# create indices
-	echo "-> Indexing NDC table"
+	echo "->  Indexing NDC table"
 	sqlite3 rxnorm.db "CREATE INDEX X_NDC_RXCUI ON NDC (RXCUI);"
 	sqlite3 rxnorm.db "CREATE INDEX X_NDC_NDC ON NDC (NDC);"
 	
-	echo "-> Indexing RXNSAT table"
+	echo "->  Indexing RXNSAT table"
 	sqlite3 rxnorm.db "CREATE INDEX RXNSAT_RXCUI ON RXNSAT (RXCUI);"
 	sqlite3 rxnorm.db "CREATE INDEX RXNSAT_ATN ON RXNSAT (ATN);"
 	
-	echo "-> Indexing RXNREL table"
+	echo "->  Indexing RXNREL table"
 	sqlite3 rxnorm.db "CREATE INDEX X_RXNREL_RXCUI1 ON RXNREL (RXCUI1);"
 	sqlite3 rxnorm.db "CREATE INDEX X_RXNREL_RXCUI2 ON RXNREL (RXCUI2);"
 	sqlite3 rxnorm.db "CREATE INDEX X_RXNREL_RXAUI2 ON RXNREL (RXAUI2);"
 	#sqlite3 rxnorm.db "CREATE INDEX X_RXNREL_RELA ON RXNREL (RELA);"		# do NOT do this! slows down queries dramatically
 	
-	echo "-> Indexing RXNCONSO table"
+	echo "->  Indexing RXNCONSO table"
 	sqlite3 rxnorm.db "CREATE INDEX X_RXNCONSO_RXCUI ON RXNCONSO (RXCUI);"
 	sqlite3 rxnorm.db "CREATE INDEX X_RXNCONSO_RXAUI ON RXNCONSO (RXAUI);"
 	
@@ -72,14 +72,4 @@ if [ ! -e rxnorm.db ]; then
 	# SELECT RXCUI, NDC FROM NDC;
 	# SELECT DISTINCT ATV FROM RXNSAT WHERE ATN = 'VA_CLASS_NAME' ORDER BY ATV ASC;
 fi
-
-# dump to N-Triples
-exit 0
-sqlite3 rxnorm.db <<SQLITE_COMMAND
-.headers OFF
-.separator ""
-.mode list
-.out rxnorm.nt
-SELECT "<http://purl.bioontology.org/ontology/RXNORM/", RXCUI2, "> <http://purl.bioontology.org/ontology/RXNORM#", RELA, "> <http://purl.bioontology.org/ontology/RXNORM/", RXCUI1, "> ." FROM RXNREL WHERE RELA != '';
-SQLITE_COMMAND
 
