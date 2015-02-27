@@ -2,7 +2,8 @@
 
 # to make it simple we include the variables here instead of creating yet another file
 
-# export type, supported are "csv" and "mongo" and "sqlte" so far
+# export type, supported are: "csv", "mongo", "sqlite"
+# if run without setting a type will simply print to console
 export EXPORT_TYPE=
 
 # MongoDB parameters
@@ -19,5 +20,4 @@ export SQLITE_FILE='databases/rxnorm.db'
 # TODO: add a Couchbase version
 
 # run the setup script with these environment variables
-export DID_SOURCE_FOR_SETUP='did'
 python3 rxnorm_link_run.py

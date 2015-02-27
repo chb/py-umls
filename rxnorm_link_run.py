@@ -121,6 +121,7 @@ class MongoDocHandler(DocHandler):
 		db_bucket = os.environ.get('MONGO_BUCKET')
 		db_bucket = db_bucket if db_bucket else 'rxnorm'
 		
+		import pymongo		# imported here so it's only imported when using Mongo
 		conn = pymongo.MongoClient(host=db_host, port=db_port)
 		db = conn[db_name]
 		
@@ -181,20 +182,13 @@ class CSVHandler(DocHandler):
 		return 'CSV file "{}"'.format(self.csv_file)
 
 
-if '__main__' == __name__:
-	logging.basicConfig(level=logging.INFO)
-	
-	if 'did' != os.environ.get('DID_SOURCE_FOR_SETUP', 0):
-		logging.error('You should use "rxnorm_link_run.sh" in order to run the linking process')
-		sys.exit(1)
-	
-	# create handler and run
-	ex_type = os.environ.get('EXPORT_TYPE')
+def runLinking(ex_type):
+	""" Create the desired handler and run import.
+	"""
 	handler = DebugDocHandler()
 	if ex_type is not None and len(ex_type) > 0:
 		try:
 			if 'mongo' == ex_type:
-				import pymongo
 				handler = MongoDocHandler()
 			elif 'couch' == ex_type:
 				# import couchbase
@@ -211,3 +205,13 @@ if '__main__' == __name__:
 	
 	print('->  Processing to {}'.format(handler))
 	runImport(doc_handler=handler)
+
+
+if '__main__' == __name__:
+	logging.basicConfig(level=logging.INFO)
+	
+	cmd_arg = sys.argv[1] if len(sys.argv) > 1 else None
+	ex_type = os.environ.get('EXPORT_TYPE') or cmd_arg
+	
+	runLinking(ex_type)
+
