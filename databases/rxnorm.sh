@@ -13,6 +13,10 @@ if [ ! -e rxnorm.db ]; then
 		echo "There is no directory named rrf in the directory you provided. Download the latest version here: http://www.nlm.nih.gov/research/umls/rxnorm/docs/rxnormfiles.html"
 		exit 1
 	fi
+	if ! hash sqlite3 &>/dev/null; then
+		echo "It seems 'sqlite3' is not installed, I will need it. Aborting."
+		exit 1
+	fi
 	
 	# init the database
 	cat "$1/scripts/mysql/Table_scripts_mysql_rxn.sql" | sqlite3 rxnorm.db
