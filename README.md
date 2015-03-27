@@ -71,3 +71,9 @@ Create a graphical representation (PDF) of relationships for a given RXCUI.
 You need to have `dot` installed (part of the GraphViz package).
 Run the script from command line and provide a RXCUI as the first argument.
 The script will then traverse the relationship graph of that concept to a specific depth (8 by default) and plot the relationships into a dot file and a PDF.
+
+License
+-------
+
+This work is [Apache licensed](LICENSE.txt).
+
