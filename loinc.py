@@ -35,6 +35,7 @@ class LOINC(object):
 		""" Imports LOINC from the downloaded CSV files.
 		"""
 		import sqlite
+		import csvimporter
 		
 		mapping = {
 			'loinc.csv': 'loinc',
@@ -46,7 +47,7 @@ class LOINC(object):
 		# import
 		for csvfile, table in mapping.items():
 			print("Importing LOINC table {}".format(csvfile))
-			imp = sqlite.CSVImporter(os.path.join(dirpath, csvfile), table)
+			imp = csvimporter.CSVImporter(os.path.join(dirpath, csvfile), table)
 			imp.import_to(dbpath)
 		
 		# index
