@@ -14,7 +14,10 @@ import logging
 from sqlite import SQLite			# for py-umls standalone
 
 
-class SNOMED (object):
+class SNOMEDDBNotPresentException(Exception):
+	pass
+
+class SNOMED(object):
 	""" A class for importing UMLS terminologies into an SQLite database.
 	"""
 	
@@ -31,7 +34,7 @@ class SNOMED (object):
 		
 		snomed_db = os.path.join('databases', 'snomed.db')
 		if not os.path.exists(snomed_db):
-			raise Exception("The SNOMED database at {} does not exist. Run the script `snomed.py`."
+			raise SNOMEDDBNotPresentException("The SNOMED database at {} does not exist. Run the script `snomed.py`."
 				.format(os.path.abspath(snomed_db)))
 	
 	
@@ -40,8 +43,8 @@ class SNOMED (object):
 		
 		# table to file mapping
 		prefixes = {
-			'descriptions': 'sct2_Description_Full-en_INT_',
-			'relationships': 'sct2_Relationship_Full_INT_'
+			'descriptions': 'sct2_Description_Full-en_',
+			'relationships': 'sct2_Relationship_Full_'
 		}
 		found = {}
 		snomed_dir = sys.argv[1]
@@ -184,7 +187,7 @@ class SNOMED (object):
 			''')
 
 
-class SNOMEDLookup (object):
+class SNOMEDLookup(object):
 	""" SNOMED lookup """
 	
 	sqlite = None
@@ -216,6 +219,22 @@ class SNOMEDLookup (object):
 		return "<br/>\n".join(names) if len(names) > 0 else ''
 
 
+class SNOMEDConcept(object):
+	""" Represents a SNOMED concept.
+	"""
+	uplooker = SNOMEDLookup()
+	
+	def __init__(self, code):
+		self.code = code
+		self._term = None
+	
+	@property
+	def term(self):
+		if self._term is None:
+			self._term = self.__class__.uplooker.lookup_code_meaning(self.code)
+		return self._term
+
+
 # find file function
 def _find_files(directory, prefix):
 	for root, dirs, files in os.walk(directory):
@@ -237,24 +256,24 @@ if '__main__' == __name__:
 	# if the database check fails, run import commands
 	try:
 		SNOMED.check_database()
-	except Exception as e:
+	except SNOMEDDBNotPresentException as e:
 		if len(sys.argv) < 2:
-			print("Provide the path to the extracted SNOMED directory as first argument.")
+			print("Provide the path to the extracted SNOMED (RF2) directory as first argument.")
 			print("Download SNOMED from http://www.nlm.nih.gov/research/umls/licensedcontent/snomedctfiles.html""")
 			sys.exit(0)
 		
 		# import from files
 		try:
+			found = SNOMED.find_needed_files(sys.argv[1])
 			SNOMED.sqlite_handle = None
 			SNOMED.setup_tables()
-			found = SNOMED.find_needed_files(sys.argv[1])
 			SNOMED.import_from_files(found)
 		except Exception as e:
-			raise Exception("SNOMED import failed: {}".format(e))
+			print("SNOMED import failed: {}".format(e))
 		sys.exit(0)
 	
 	# examples
-	look = SNOMEDLookup()
 	code = '215350009'
-	meaning = look.lookup_code_meaning(code)
-	print('SNOMED code "{0}":  {1}'.format(code, meaning))
+	cpt = SNOMEDConcept(code)
+	print('SNOMED code "{0}":  {1}'.format(code, cpt.name))
+
