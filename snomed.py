@@ -213,20 +213,24 @@ class SNOMEDLookup(object):
 			return ", ".join(names) if len(names) > 0 else ''
 		return "<br/>\n".join(names) if len(names) > 0 else ''
 	
-	def lookup_if_descendent_of(self, child_id, parent_id):
+	def lookup_if_isa(self, child_id, parent_id, checked=None):
 		""" Determines if a child concept is refining a parent concept, i.e.
 		if there is a (direct or indirect) "is a" (116680003) relationship from
 		child to parent.
 		"""
 		if not child_id or not parent_id:
 			return False
+		if checked is not None and child_id in checked:
+			return False
 		
 		parents = self.lookup_parents_of(child_id)
 		if parent_id in parents:
 			return True
 		
+		chkd = checked or []
+		chkd.append(child_id)
 		for parent in parents:
-			flag = self.lookup_if_descendent_of(parent, parent_id)
+			flag = self.lookup_if_isa(parent, parent_id, chkd)
 			if flag:
 				return True
 		return False
@@ -261,8 +265,8 @@ class SNOMEDConcept(object):
 			self._term = self.__class__.uplooker.lookup_code_meaning(self.code)
 		return self._term
 	
-	def has_parent(self, parent_code):
-		return self.__class__.uplooker.lookup_if_descendent_of(self.code, parent_code)
+	def isa(self, parent_code):
+		return self.__class__.uplooker.lookup_if_isa(self.code, parent_code)
 
 
 # find file function
@@ -308,5 +312,5 @@ if '__main__' == __name__:
 	
 	cpt = SNOMEDConcept('315004001')	# -> 128462008 -> 363346000 -> 55342001
 	for other in ['128462008', '363346000', '55342001', '215350009']:
-		print('SNOMED code "{0}" refines {1}:  {2}'.format(cpt.code, other, cpt.has_parent(other)))
+		print('SNOMED code "{0}" refines "{1}":  {2}'.format(cpt.code, other, cpt.isa(other)))
 

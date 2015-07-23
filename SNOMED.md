@@ -15,14 +15,15 @@ cpt = SNOMEDConcept('215350009')
 print('SNOMED code "{0}":  {1}'.format(cpt.code, cpt.term))
 ```
 
-### `has_parent()`
+### `isa()`
 
 A method to check whether the concept has the given concept as a (direct or indirect) parent.
 This looks at the 'isa' relationship (concept 116680003).
 
 ```python
+cpt = SNOMEDConcept('315004001')
 for other in ['128462008', '363346000', '55342001', '215350009']:
-    has = cpt.has_parent(other)
+    has = cpt.isa(other)
     print('SNOMED code "{0}" refines {1}:  {2}'.format(cpt.code, other, has))
 ```
 
@@ -30,4 +31,4 @@ for other in ['128462008', '363346000', '55342001', '215350009']:
 Importer
 --------
 
-The importer requires the _Release Format 2_ (RF2) files, but works with both international and US releases.
+The importer requires the _Release Format 2_ (RF2) files, but works with both [international](http://www.nlm.nih.gov/research/umls/licensedcontent/snomedctfiles.html) and [US](http://www.nlm.nih.gov/research/umls/Snomed/us_edition.html) releases.
