@@ -136,9 +136,10 @@ class SNOMED(object):
 				rel_text VARCHAR,
 				active INT
 			)''')
+		cls.sqlite_handle.execute("UPDATE relationships SET rel_text = 'isa' WHERE rel_type = 116680003")
+		cls.sqlite_handle.execute("UPDATE relationships SET rel_text = 'finding_site' WHERE rel_type = 363698007")
 		cls.sqlite_handle.execute("CREATE INDEX IF NOT EXISTS source_index ON relationships (source_id)")
 		cls.sqlite_handle.execute("CREATE INDEX IF NOT EXISTS destination_index ON relationships (destination_id)")
-		cls.sqlite_handle.execute("CREATE INDEX IF NOT EXISTS rel_type_index ON relationships (rel_type)")
 		cls.sqlite_handle.execute("CREATE INDEX IF NOT EXISTS rel_text_index ON relationships (rel_text)")
 		
 	
@@ -178,13 +179,7 @@ class SNOMED(object):
 	def did_import(cls, table_name):
 		""" Allows us to set hooks after tables have been imported
 		"""
-		if 'relationships' == table_name:
-			cls.sqlite_handle.execute('''
-				UPDATE relationships SET rel_text = 'isa' WHERE rel_type = 116680003
-			''')
-			cls.sqlite_handle.execute('''
-				UPDATE relationships SET rel_text = 'finding_site' WHERE rel_type = 363698007
-			''')
+		pass
 
 
 class SNOMEDLookup(object):
@@ -217,6 +212,38 @@ class SNOMEDLookup(object):
 		if no_html:
 			return ", ".join(names) if len(names) > 0 else ''
 		return "<br/>\n".join(names) if len(names) > 0 else ''
+	
+	def lookup_if_descendent_of(self, child_id, parent_id):
+		""" Determines if a child concept is refining a parent concept, i.e.
+		if there is a (direct or indirect) "is a" (116680003) relationship from
+		child to parent.
+		"""
+		if not child_id or not parent_id:
+			return False
+		
+		parents = self.lookup_parents_of(child_id)
+		if parent_id in parents:
+			return True
+		
+		for parent in parents:
+			flag = self.lookup_if_descendent_of(parent, parent_id)
+			if flag:
+				return True
+		return False
+	
+	
+	def lookup_parents_of(self, snomed_id):
+		""" Returns a list of concept ids that have a direct "is a" (116680003)
+		relationship with the given id.
+		"""
+		ids = []
+		if snomed_id:
+			#sql = 'SELECT destination_id FROM relationships WHERE source_id = ? AND rel_type = 116680003'	# Too slow!!
+			sql = 'SELECT destination_id, rel_text FROM relationships WHERE source_id = ?'
+			for res in self.sqlite.execute(sql, (snomed_id,)):
+				if 'isa' == res[1]:
+					ids.append(str(res[0]))
+		return ids
 
 
 class SNOMEDConcept(object):
@@ -233,6 +260,9 @@ class SNOMEDConcept(object):
 		if self._term is None:
 			self._term = self.__class__.uplooker.lookup_code_meaning(self.code)
 		return self._term
+	
+	def has_parent(self, parent_code):
+		return self.__class__.uplooker.lookup_if_descendent_of(self.code, parent_code)
 
 
 # find file function
@@ -273,7 +303,10 @@ if '__main__' == __name__:
 		sys.exit(0)
 	
 	# examples
-	code = '215350009'
-	cpt = SNOMEDConcept(code)
-	print('SNOMED code "{0}":  {1}'.format(code, cpt.name))
+	cpt = SNOMEDConcept('215350009')
+	print('SNOMED code "{0}":  {1}'.format(cpt.code, cpt.term))
+	
+	cpt = SNOMEDConcept('315004001')	# -> 128462008 -> 363346000 -> 55342001
+	for other in ['128462008', '363346000', '55342001', '215350009']:
+		print('SNOMED code "{0}" refines {1}:  {2}'.format(cpt.code, other, cpt.has_parent(other)))
 
