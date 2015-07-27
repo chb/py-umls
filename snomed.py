@@ -14,7 +14,10 @@ import logging
 from sqlite import SQLite			# for py-umls standalone
 
 
-class SNOMED (object):
+class SNOMEDDBNotPresentException(Exception):
+	pass
+
+class SNOMED(object):
 	""" A class for importing UMLS terminologies into an SQLite database.
 	"""
 	
@@ -31,7 +34,7 @@ class SNOMED (object):
 		
 		snomed_db = os.path.join('databases', 'snomed.db')
 		if not os.path.exists(snomed_db):
-			raise Exception("The SNOMED database at {} does not exist. Run the script `snomed.py`."
+			raise SNOMEDDBNotPresentException("The SNOMED database at {} does not exist. Run the script `snomed.py`."
 				.format(os.path.abspath(snomed_db)))
 	
 	
@@ -40,8 +43,8 @@ class SNOMED (object):
 		
 		# table to file mapping
 		prefixes = {
-			'descriptions': 'sct2_Description_Full-en_INT_',
-			'relationships': 'sct2_Relationship_Full_INT_'
+			'descriptions': 'sct2_Description_Full-en_',
+			'relationships': 'sct2_Relationship_Full_'
 		}
 		found = {}
 		snomed_dir = sys.argv[1]
@@ -133,9 +136,10 @@ class SNOMED (object):
 				rel_text VARCHAR,
 				active INT
 			)''')
+		cls.sqlite_handle.execute("UPDATE relationships SET rel_text = 'isa' WHERE rel_type = 116680003")
+		cls.sqlite_handle.execute("UPDATE relationships SET rel_text = 'finding_site' WHERE rel_type = 363698007")
 		cls.sqlite_handle.execute("CREATE INDEX IF NOT EXISTS source_index ON relationships (source_id)")
 		cls.sqlite_handle.execute("CREATE INDEX IF NOT EXISTS destination_index ON relationships (destination_id)")
-		cls.sqlite_handle.execute("CREATE INDEX IF NOT EXISTS rel_type_index ON relationships (rel_type)")
 		cls.sqlite_handle.execute("CREATE INDEX IF NOT EXISTS rel_text_index ON relationships (rel_text)")
 		
 	
@@ -175,16 +179,10 @@ class SNOMED (object):
 	def did_import(cls, table_name):
 		""" Allows us to set hooks after tables have been imported
 		"""
-		if 'relationships' == table_name:
-			cls.sqlite_handle.execute('''
-				UPDATE relationships SET rel_text = 'isa' WHERE rel_type = 116680003
-			''')
-			cls.sqlite_handle.execute('''
-				UPDATE relationships SET rel_text = 'finding_site' WHERE rel_type = 363698007
-			''')
+		pass
 
 
-class SNOMEDLookup (object):
+class SNOMEDLookup(object):
 	""" SNOMED lookup """
 	
 	sqlite = None
@@ -214,6 +212,61 @@ class SNOMEDLookup (object):
 		if no_html:
 			return ", ".join(names) if len(names) > 0 else ''
 		return "<br/>\n".join(names) if len(names) > 0 else ''
+	
+	def lookup_if_isa(self, child_id, parent_id, checked=None):
+		""" Determines if a child concept is refining a parent concept, i.e.
+		if there is a (direct or indirect) "is a" (116680003) relationship from
+		child to parent.
+		"""
+		if not child_id or not parent_id:
+			return False
+		if checked is not None and child_id in checked:
+			return False
+		
+		parents = self.lookup_parents_of(child_id)
+		if parent_id in parents:
+			return True
+		
+		chkd = checked or []
+		chkd.append(child_id)
+		for parent in parents:
+			flag = self.lookup_if_isa(parent, parent_id, chkd)
+			if flag:
+				return True
+		return False
+	
+	
+	def lookup_parents_of(self, snomed_id):
+		""" Returns a list of concept ids that have a direct "is a" (116680003)
+		relationship with the given id.
+		"""
+		ids = []
+		if snomed_id:
+			#sql = 'SELECT destination_id FROM relationships WHERE source_id = ? AND rel_type = 116680003'	# Too slow!!
+			sql = 'SELECT destination_id, rel_text FROM relationships WHERE source_id = ?'
+			for res in self.sqlite.execute(sql, (snomed_id,)):
+				if 'isa' == res[1]:
+					ids.append(str(res[0]))
+		return ids
+
+
+class SNOMEDConcept(object):
+	""" Represents a SNOMED concept.
+	"""
+	uplooker = SNOMEDLookup()
+	
+	def __init__(self, code):
+		self.code = code
+		self._term = None
+	
+	@property
+	def term(self):
+		if self._term is None:
+			self._term = self.__class__.uplooker.lookup_code_meaning(self.code)
+		return self._term
+	
+	def isa(self, parent_code):
+		return self.__class__.uplooker.lookup_if_isa(self.code, parent_code)
 
 
 # find file function
@@ -237,24 +290,27 @@ if '__main__' == __name__:
 	# if the database check fails, run import commands
 	try:
 		SNOMED.check_database()
-	except Exception as e:
+	except SNOMEDDBNotPresentException as e:
 		if len(sys.argv) < 2:
-			print("Provide the path to the extracted SNOMED directory as first argument.")
+			print("Provide the path to the extracted SNOMED (RF2) directory as first argument.")
 			print("Download SNOMED from http://www.nlm.nih.gov/research/umls/licensedcontent/snomedctfiles.html""")
 			sys.exit(0)
 		
 		# import from files
 		try:
+			found = SNOMED.find_needed_files(sys.argv[1])
 			SNOMED.sqlite_handle = None
 			SNOMED.setup_tables()
-			found = SNOMED.find_needed_files(sys.argv[1])
 			SNOMED.import_from_files(found)
 		except Exception as e:
-			raise Exception("SNOMED import failed: {}".format(e))
+			print("SNOMED import failed: {}".format(e))
 		sys.exit(0)
 	
 	# examples
-	look = SNOMEDLookup()
-	code = '215350009'
-	meaning = look.lookup_code_meaning(code)
-	print('SNOMED code "{0}":  {1}'.format(code, meaning))
+	cpt = SNOMEDConcept('215350009')
+	print('SNOMED code "{0}":  {1}'.format(cpt.code, cpt.term))
+	
+	cpt = SNOMEDConcept('315004001')	# -> 128462008 -> 363346000 -> 55342001
+	for other in ['128462008', '363346000', '55342001', '215350009']:
+		print('SNOMED code "{0}" refines "{1}":  {2}'.format(cpt.code, other, cpt.isa(other)))
+
