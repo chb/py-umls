@@ -23,8 +23,8 @@ This looks at the 'isa' relationship (concept 116680003).
 ```python
 cpt = SNOMEDConcept('315004001')
 for other in ['128462008', '363346000', '55342001', '215350009']:
-    has = cpt.isa(other)
-    print('SNOMED code "{0}" refines {1}:  {2}'.format(cpt.code, other, has))
+    print('SNOMED code "{0}" refines "{1}":  {2}'
+        .format(cpt.code, other, cpt.isa(other)))
 ```
 
 
