@@ -132,7 +132,7 @@ class RxNormLookup (object):
 		
 		# preferred name
 		pref_match = None
-		for tty in ['SBDC', 'SCDC', 'SBD', 'SCD', 'CD', 'BN', 'IN', 'PIN', 'MIN']:
+		for tty in ['SBDC', 'SCDC', 'SBD', 'SCD', 'CD', 'SBDF', 'SCDF', 'BN', 'IN', 'PIN', 'MIN']:
 			for res in found:
 				if tty == res[1]:
 					pref_match = res
@@ -526,13 +526,25 @@ def _splitted_string(string, maxlen=60):
 if '__main__' == __name__:
 	RxNorm.check_database()
 	
-	# examples
-	look = RxNormLookup()
-	code = '328406'
-	meaning = look.lookup_rxcui_name(code, preferred=False)
-	ttys = look.lookup_tty(code)
-	related = look.lookup_related(code)
+	import sys
+	rxcuis = sys.argv[1:] if len(sys.argv) > 1 else None
+	if rxcuis is None:
+		print('x>  Provide RXCUIs as arguments on the command line')
+		sys.exit(0)
 	
-	print('RxNorm code      "{0}":  {1}'.format(code, meaning))
-	print('Concept type     "{0}":  {1}'.format(code, ', '.join(ttys)))
-	print('Relationships    "{0}":  {1}'.format(code, ";  ".join(['{} {}'.format(r, c) for c, r in related])))
+	look = RxNormLookup()
+	for rxcui in rxcuis:
+		print('-----')
+		meaning = look.lookup_rxcui_name(rxcui, preferred=False)
+		ttys = look.lookup_tty(rxcui)
+		related = look.lookup_related(rxcui)
+		
+		print('RxCUI          "{0}":  {1}'.format(rxcui, meaning))
+		print('Concept type   "{0}":  {1}'.format(rxcui, ', '.join(ttys)))
+		print('Relationships  "{0}":'.format(rxcui))
+		for rrxcui, rrela in sorted(related, key=lambda x: x[1]):
+			rname, rtty, a, b = look.lookup_rxcui(rrxcui)
+			sp1 = ''.join([' ' for i in range(17+len(rxcui)-len(rrela))])
+			sp2 = ''.join([' ' for i in range(9-len(rrxcui))])
+			sp3 = ''.join([' ' for i in range(6-len(rtty))])
+			print('{}{}:{}{}{}{}  {}'.format(sp1, rrela, sp2, rrxcui, sp3, rtty, rname))
