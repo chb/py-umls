@@ -467,8 +467,10 @@ class RxNormCUI (GraphableObject):
 	
 	def update_self_from_rxcui(self):
 		if self.rxcui:
-			pref, found = self.rxlookup.lookup_rxcui(self.rxcui, preferred=False)
-			if found is not None and len(found) > 0:
+			ret = self.rxlookup.lookup_rxcui(self.rxcui, preferred=False)
+			if ret is not None and len(ret) > 1 and len(ret[1]) > 0:
+				pref = ret[0]
+				found = ret[1]
 				self.ttys = set([res[1] for res in found])
 				self.label = _splitted_string(pref if pref else found[0][0])
 				self.label += "\n[{} - {}]".format(self.rxcui, ', '.join(sorted(self._ttys)))
