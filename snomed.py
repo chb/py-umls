@@ -20,8 +20,12 @@ class SNOMEDDBNotPresentException(Exception):
 class SNOMED(object):
 	""" A class for importing UMLS terminologies into an SQLite database.
 	"""
-	
 	sqlite_handle = None
+	
+	@classmethod
+	def database_path(cls):
+		absolute = os.path.dirname(os.path.realpath(__file__))
+		return os.path.join(absolute, 'databases/snomed.db')
 	
 	@classmethod
 	def check_database(cls):
@@ -31,12 +35,10 @@ class SNOMED(object):
 		SNOMED: (snomed.db)
 		Read SNOMED CT from tab-separated files and create an SQLite database.
 		"""
-		
-		snomed_db = os.path.join('databases', 'snomed.db')
+		snomed_db = cls.database_path()
 		if not os.path.exists(snomed_db):
 			raise SNOMEDDBNotPresentException("The SNOMED database at {} does not exist. Run the script `snomed.py`."
 				.format(os.path.abspath(snomed_db)))
-	
 	
 	@classmethod
 	def find_needed_files(cls, snomed_dir):
@@ -58,7 +60,6 @@ class SNOMED(object):
 		
 		return found
 	
-	
 	@classmethod
 	def import_from_files(cls, rx_map):
 		for table, filepath in rx_map.items():
@@ -68,7 +69,6 @@ class SNOMED(object):
 				continue
 			
 			cls.import_csv_into_table(filepath, table)
-	
 	
 	@classmethod
 	def import_csv_into_table(cls, snomed_file, table_name):
@@ -115,7 +115,7 @@ class SNOMED(object):
 		Does nothing if the tables/indexes already exist
 		"""
 		if cls.sqlite_handle is None:
-			cls.sqlite_handle = SQLite.get(os.path.join('databases', 'snomed.db'))
+			cls.sqlite_handle = cls.database_path()
 		
 		# descriptions
 		cls.sqlite_handle.create('descriptions', '''(
@@ -141,7 +141,6 @@ class SNOMED(object):
 		cls.sqlite_handle.execute("CREATE INDEX IF NOT EXISTS source_index ON relationships (source_id)")
 		cls.sqlite_handle.execute("CREATE INDEX IF NOT EXISTS destination_index ON relationships (destination_id)")
 		cls.sqlite_handle.execute("CREATE INDEX IF NOT EXISTS rel_text_index ON relationships (rel_text)")
-		
 	
 	@classmethod
 	def insert_query_for(cls, table_name):
@@ -159,7 +158,6 @@ class SNOMED(object):
 						(?, ?, ?, ?, ?)'''
 		return None
 	
-	
 	@classmethod
 	def insert_tuple_from_csv_row_for(cls, table_name, row):
 		if 'descriptions' == table_name:
@@ -174,7 +172,6 @@ class SNOMED(object):
 			return (int(row[0]), int(row[4]), int(row[5]), int(row[7]), int(row[2]))
 		return None
 	
-	
 	@classmethod
 	def did_import(cls, table_name):
 		""" Allows us to set hooks after tables have been imported
@@ -187,10 +184,8 @@ class SNOMEDLookup(object):
 	
 	sqlite = None
 	
-	
 	def __init__(self):
-		absolute = os.path.dirname(os.path.realpath(__file__))
-		self.sqlite = SQLite.get(os.path.join(absolute, 'databases/snomed.db'))
+		self.sqlite = SQLite.get(SNOMED.database_path())
 	
 	def lookup_code_meaning(self, snomed_id, preferred=True, no_html=True):
 		""" Returns HTML for all matches of the given SNOMED id.
@@ -234,7 +229,6 @@ class SNOMEDLookup(object):
 			if flag:
 				return True
 		return False
-	
 	
 	def lookup_parents_of(self, snomed_id):
 		""" Returns a list of concept ids that have a direct "is a" (116680003)
