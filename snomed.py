@@ -260,6 +260,15 @@ class SNOMEDConcept(object):
 		return self._term
 	
 	def isa(self, parent_code):
+		""" Checks whether the receiver is a child of the given code.
+		The `parent_code` argument can also be a :class:`SNOMEDConcept`
+		instance.
+		
+		:returns: A bool on whether the receiver is a child of the given
+		    concept
+		"""
+		if isinstance(parent_code, SNOMEDConcept):
+			return self.__class__.uplooker.lookup_if_isa(self.code, parent_code.code)
 		return self.__class__.uplooker.lookup_if_isa(self.code, parent_code)
 
 
