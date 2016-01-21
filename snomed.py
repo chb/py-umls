@@ -77,7 +77,7 @@ class SNOMED(object):
 		"excel-tab" flavor.
 		"""
 		
-		logging.debug('..>  Importing SNOMED {} into snomed.db...'.format(table_name))
+		logging.debug('Importing SNOMED {} into snomed.db...'.format(table_name))
 		
 		# not yet imported, parse tab-separated file and import
 		with open(snomed_file, encoding='utf-8') as csv_handle:
@@ -106,7 +106,7 @@ class SNOMED(object):
 				cls.sqlite_handle.rollback()
 				sys.exit('CSV error on line {}: {}'.format(reader.line_num, e))
 
-		logging.debug('..>  {} concepts parsed'.format(i-1))
+		logging.debug('{} concepts parsed'.format(i-1))
 
 
 	@classmethod
@@ -115,7 +115,7 @@ class SNOMED(object):
 		Does nothing if the tables/indexes already exist
 		"""
 		if cls.sqlite_handle is None:
-			cls.sqlite_handle = cls.database_path()
+			cls.sqlite_handle = SQLite.get(cls.database_path())
 		
 		# descriptions
 		cls.sqlite_handle.create('descriptions', '''(
@@ -125,7 +125,6 @@ class SNOMED(object):
 				isa VARCHAR,
 				active INT
 			)''')
-		cls.sqlite_handle.execute("CREATE INDEX IF NOT EXISTS isa_index ON descriptions (isa)")
 		
 		# relationships
 		cls.sqlite_handle.create('relationships', '''(
@@ -136,11 +135,6 @@ class SNOMED(object):
 				rel_text VARCHAR,
 				active INT
 			)''')
-		cls.sqlite_handle.execute("UPDATE relationships SET rel_text = 'isa' WHERE rel_type = 116680003")
-		cls.sqlite_handle.execute("UPDATE relationships SET rel_text = 'finding_site' WHERE rel_type = 363698007")
-		cls.sqlite_handle.execute("CREATE INDEX IF NOT EXISTS source_index ON relationships (source_id)")
-		cls.sqlite_handle.execute("CREATE INDEX IF NOT EXISTS destination_index ON relationships (destination_id)")
-		cls.sqlite_handle.execute("CREATE INDEX IF NOT EXISTS rel_text_index ON relationships (rel_text)")
 	
 	@classmethod
 	def insert_query_for(cls, table_name):
@@ -174,9 +168,23 @@ class SNOMED(object):
 	
 	@classmethod
 	def did_import(cls, table_name):
-		""" Allows us to set hooks after tables have been imported
+		""" Allows us to set hooks after tables have been imported.
+		
+		Creates indexes and names `isa` and `finding_site` relationships.
 		"""
-		pass
+		# index descriptions
+		if 'descriptions' == table_name:
+			print("----- DID IMPORT descriptions")
+			cls.sqlite_handle.execute("CREATE INDEX IF NOT EXISTS isa_index ON descriptions (isa)")
+		
+		# update and index relationships
+		if 'relationships' == table_name:
+			print("----- DID IMPORT relationships")
+			cls.sqlite_handle.execute("UPDATE relationships SET rel_text = 'isa' WHERE rel_type = 116680003")
+			cls.sqlite_handle.execute("UPDATE relationships SET rel_text = 'finding_site' WHERE rel_type = 363698007")
+			cls.sqlite_handle.execute("CREATE INDEX IF NOT EXISTS source_index ON relationships (source_id)")
+			cls.sqlite_handle.execute("CREATE INDEX IF NOT EXISTS destination_index ON relationships (destination_id)")
+			cls.sqlite_handle.execute("CREATE INDEX IF NOT EXISTS rel_text_index ON relationships (rel_text)")
 
 
 class SNOMEDLookup(object):
