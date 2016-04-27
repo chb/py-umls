@@ -20,10 +20,10 @@ See below for some quick examples.
 Usage
 -----
 
-More detailed (at one point) instructions here:
+More detailed instructions here:
 
-- [**RxNorm**](RxNorm.md)
-- [**SNOMED-CT**](SNOMED.md)
+- [**RxNorm**](https://github.com/chb/py-umls/wiki/RxNorm)
+- [**SNOMED-CT**](https://github.com/chb/py-umls/wiki/SNOMED)
 
 There are `XYLookup` classes in each of the three files which can be used for database lookups (where `XY` stands for `UMLS`, `SNOMED` or `RxNorm`).
 The following example code is appended to the end of the respective scripts and will be executed if you run it in the Shell.
