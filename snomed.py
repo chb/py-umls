@@ -321,7 +321,8 @@ if '__main__' == __name__:
 	cpt = SNOMEDConcept('215350009')
 	print('SNOMED code "{0}":  {1}'.format(cpt.code, cpt.term))
 	
-	cpt = SNOMEDConcept('315004001')	# -> 128462008 -> 363346000 -> 55342001
-	for other in ['128462008', '363346000', '55342001', '215350009']:
+	cpt = SNOMEDConcept('315004001')	# -> 128462008 -> 363346000 -> 55342001 x> 215350009
+	for other, expected in [('128462008', True), ('363346000', True), ('55342001', True), ('215350009', False)]:
 		print('SNOMED code "{0}" refines "{1}":  {2}'.format(cpt.code, other, cpt.isa(other)))
+		assert expected == cpt.isa(other), '"{0}" refines "{1}" should return {2} or the database hasn’t been set up properly'.format(cpt.code, other, 'True' if expected else 'False')
 
